@@ -1,0 +1,87 @@
+/* ===========================================================================
+   Bay Tracker design tokens, imported from the Claude Design project
+   "Yamazumi" (_ds/bay-tracker-design-system/tokens/*.css).
+
+   Only the tokens this app actually uses are carried over. Values are copied
+   verbatim so the editor reads as the same product as the rest of Bay Tracker.
+
+   Note on category colors: the chart's block fills do NOT come from here. They
+   come from the SPEC section 10 palette in src/model/palette.ts, because a
+   category color is written into the CSV and is therefore data, not theme.
+   ========================================================================== */
+:root {
+  /* ---- Surfaces ------------------------------------------------------- */
+  --bt-bg: #11161c; /* page background */
+  --bt-panel: #1b232c; /* top bar, tray, modal */
+  --bt-panel-2: #232e39; /* nested control background */
+  --bt-border: #33414f; /* hairlines */
+
+  /* ---- Text ----------------------------------------------------------- */
+  --bt-text: #f2f6fa;
+  --bt-muted: #9fb0c0;
+
+  /* ---- Action hues ---------------------------------------------------- */
+  --bt-accent: #4a86ff; /* primary action, focus ring */
+  --bt-warn: #e6a417; /* takt line, recovery banner */
+  --bt-good: #25b866;
+  --bt-bad: #ff5a5a; /* error text */
+  --bt-delayed: #d23b3b; /* danger button fill */
+  --bt-running: #1f9d57;
+  --bt-done: #b9821b;
+  --bt-done-text: #fff3da;
+  --bt-idle: #3b4956; /* neutral chip / parking fill */
+  --bt-violet: #8b78e6; /* the one hue not otherwise in play */
+
+  /* ---- Spacing (derived from the 14px grid gap) ----------------------- */
+  --bt-space-1: 4px;
+  --bt-space-2: 6px;
+  --bt-space-3: 8px;
+  --bt-space-4: 10px;
+  --bt-space-5: 12px;
+  --bt-gap: 14px;
+  --bt-space-6: 16px;
+  --bt-space-7: 18px;
+  --bt-space-8: 20px;
+  --bt-space-9: 28px;
+
+  /* ---- Radius --------------------------------------------------------- */
+  --bt-radius: 12px; /* modals, panels */
+  --bt-radius-sm: 8px; /* buttons, inputs */
+  --bt-radius-chip: 7px; /* parking chips */
+  --bt-radius-pill: 999px;
+
+  /* ---- Elevation ------------------------------------------------------ */
+  --bt-shadow-float: 0 6px 20px rgba(0, 0, 0, 0.4);
+  --bt-shadow-toast: 0 8px 26px rgba(0, 0, 0, 0.4);
+  --bt-shadow-drag: 0 10px 26px rgba(0, 0, 0, 0.55);
+  --bt-scrim: rgba(0, 0, 0, 0.6);
+
+  /* ---- Typography ----------------------------------------------------- */
+  --bt-font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial,
+    sans-serif;
+  --bt-w-medium: 600;
+  --bt-w-bold: 700;
+  --bt-w-heavy: 800;
+
+  --bt-fs-tlabel: 12px; /* uppercase micro-labels */
+  --bt-fs-hint: 13px;
+  --bt-fs-nav: 14px;
+  --bt-fs-body: 15px;
+  --bt-fs-bayname: 17px;
+  --bt-fs-modal-h2: 20px;
+
+  --bt-track-label: 0.06em;
+  --bt-track-caps: 0.1em;
+}
+
+/* The dragged-block ghost and the modal both scale in from slightly small. */
+@keyframes ymz-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

@@ -6,7 +6,7 @@ import {
   drawFrame,
   drawLegend,
   measureLegendHeight,
-  usedLegendEntries,
+  legendEntriesFor,
 } from './canvasRenderer';
 import { formatMinutes } from '../components/format';
 
@@ -241,13 +241,15 @@ export function frameAt(
 
   return {
     viewport: setup.viewport,
+    // Scale comes from the after file, like the axis it belongs to (SPEC 13.2).
+    pxPerMinute: after.pxPerMinute,
     plot: after.plot,
     blocks,
     bayHeaders,
     axisTicks: after.axisTicks,
     taktY,
     taktLabel,
-    legend: usedLegendEntries(setup.afterState),
+    legend: legendEntriesFor(setup.afterState),
   };
 }
 
@@ -267,7 +269,7 @@ export function buildAnimation(
   resolution: { width: number; height: number },
   measureCtx: Canvas2D,
 ): Animation {
-  const legend = usedLegendEntries(afterState);
+  const legend = legendEntriesFor(afterState);
   const legendHeight = measureLegendHeight(measureCtx, legend, resolution.width - 24);
   const chartViewport = {
     width: resolution.width,

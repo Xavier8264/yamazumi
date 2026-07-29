@@ -1,3 +1,5 @@
+import Button from './Button';
+
 interface RecoveryBannerProps {
   onKeep: () => void;
   onDiscard: () => void;
@@ -7,9 +9,13 @@ interface RecoveryBannerProps {
 export function RecoveryBanner({ onKeep, onDiscard }: RecoveryBannerProps) {
   return (
     <div className="banner recovery">
-      <span>Recovered unsaved work.</span>
-      <button onClick={onKeep}>Keep</button>
-      <button onClick={onDiscard}>Discard</button>
+      <span className="banner-messages">Recovered unsaved work.</span>
+      <Button size="sm" onClick={onKeep}>
+        Keep
+      </Button>
+      <Button size="sm" onClick={onDiscard}>
+        Discard
+      </Button>
     </div>
   );
 }
@@ -32,7 +38,9 @@ export function NoticeBar({ notice, onDismiss }: NoticeBarProps) {
           <div key={i}>{m}</div>
         ))}
       </div>
-      <button onClick={onDismiss}>Dismiss</button>
+      <Button size="sm" onClick={onDismiss}>
+        Dismiss
+      </Button>
     </div>
   );
 }

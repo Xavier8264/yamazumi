@@ -1,30 +1,58 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-import {
-  DndContext,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { COLUMN_PADDING, MARGIN, layout } from '../model/layout';
 import type { LayoutRect } from '../model/layout';
 import type { Block, ChartState } from '../model/types';
 import { bottomStackSortingStrategy } from './sortStrategy';
-import { formatMinutes, textColorFor } from './format';
+import { blockFontSize, formatMinutes, textColorFor } from './format';
+import { containerIdFor } from './dndIds';
+
+// DOM renderer. All geometry comes from layout(); this file only paints and
+// wires interaction. Blocks live in per-bay flex containers with
+// flex-direction: column-reverse so DOM order matches array order and index 0
+// sits at the baseline (SPEC 9.3).
 
 interface ChartProps {
   chart: ChartState;
+  presenting: boolean;
   onFit: () => void;
-  onReorderWithinBay: (bay: string, from: number, to: number) => void;
+  onEditBlock: (id: string) => void;
+  onAddToBay: (bay: string) => void;
+  onRenameBay: (from: string, to: string) => void;
+  onRemoveBay: (bay: string) => void;
   onSizeChange?: (size: { width: number; height: number }) => void;
 }
 
-function SortableBlock({ rect }: { rect: LayoutRect }) {
+export function BlockBody({ rect }: { rect: LayoutRect }) {
+  const color = textColorFor(rect.fill);
+  // Size travels as a custom property so presentation mode can scale it in
+  // CSS; an inline font-size would win over the .presenting rule.
+  const style = {
+    color,
+    textShadow: color === '#ffffff' ? '0 1px 2px rgba(0, 0, 0, 0.35)' : 'none',
+    '--block-fs': blockFontSize(rect.h) + 'px',
+  } as React.CSSProperties;
+  return (
+    <div className="block-label" style={style}>
+      <span className="block-name">{rect.label}</span>
+      <span className="block-min">{formatMinutes(rect.minutes)}</span>
+    </div>
+  );
+}
+
+function SortableBlock({
+  rect,
+  presenting,
+  onEdit,
+}: {
+  rect: LayoutRect;
+  presenting: boolean;
+  onEdit: () => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: rect.id });
+    useSortable({ id: rect.id, disabled: presenting });
   return (
     <div
       ref={setNodeRef}
@@ -32,27 +60,129 @@ function SortableBlock({ rect }: { rect: LayoutRect }) {
       {...listeners}
       className={isDragging ? 'block dragging' : 'block'}
       title={rect.label + ' - ' + formatMinutes(rect.minutes) + ' min'}
+      onClick={presenting ? undefined : onEdit}
       style={{
         height: rect.h,
         background: rect.fill,
-        color: textColorFor(rect.fill),
         transform: CSS.Transform.toString(transform),
         transition,
       }}
     >
-      {rect.labelFits && <span className="block-label">{rect.label}</span>}
+      {rect.labelFits && <BlockBody rect={rect} />}
     </div>
   );
 }
 
-// DOM renderer. All geometry comes from layout(); this file only paints.
-// Blocks live in per-bay flex containers with flex-direction: column-reverse
-// so DOM order matches array order and index 0 sits at the baseline
-// (SPEC 9.3).
+function BayColumn({
+  bay,
+  items,
+  rectById,
+  presenting,
+  style,
+  onEditBlock,
+}: {
+  bay: string;
+  items: Block[];
+  rectById: Map<string, LayoutRect>;
+  presenting: boolean;
+  style: React.CSSProperties;
+  onEditBlock: (id: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: containerIdFor(bay) });
+  return (
+    <div
+      ref={setNodeRef}
+      className={isOver ? 'bay-column over' : 'bay-column'}
+      style={style}
+    >
+      <SortableContext
+        items={items.map((b) => b.id)}
+        strategy={bottomStackSortingStrategy}
+      >
+        {items.map((b) => {
+          const rect = rectById.get(b.id);
+          return rect ? (
+            <SortableBlock
+              key={b.id}
+              rect={rect}
+              presenting={presenting}
+              onEdit={() => onEditBlock(b.id)}
+            />
+          ) : null;
+        })}
+      </SortableContext>
+    </div>
+  );
+}
+
+// SPEC 9.5: click a bay header to rename inline. Commits on blur or Enter so
+// a rename is one undo entry, not one per keystroke.
+function BayHeader({
+  bay,
+  canRemove,
+  presenting,
+  onAdd,
+  onRename,
+  onRemove,
+}: {
+  bay: string;
+  canRemove: boolean;
+  presenting: boolean;
+  onAdd: () => void;
+  onRename: (to: string) => void;
+  onRemove: () => void;
+}) {
+  const [text, setText] = useState(bay);
+  useEffect(() => setText(bay), [bay]);
+
+  if (presenting) return <div className="bay-name-static">{bay}</div>;
+
+  // Both controls trail the name so each pair reads as belonging to the bay on
+  // its left. Splitting them to the two edges puts one bay's "+" right next to
+  // the previous bay's "x".
+  return (
+    <>
+      <input
+        className="bay-name"
+        value={text}
+        aria-label={'Rename ' + bay}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => onRename(text)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') {
+            setText(bay);
+            e.currentTarget.blur();
+          }
+        }}
+      />
+      <button className="bay-btn" onClick={onAdd} title={'Add a step to the top of ' + bay}>
+        +
+      </button>
+      <button
+        className="bay-btn"
+        onClick={onRemove}
+        disabled={!canRemove}
+        title={
+          canRemove
+            ? 'Remove ' + bay + '. Its steps move to the parking lot.'
+            : 'A chart keeps at least one bay.'
+        }
+      >
+        x
+      </button>
+    </>
+  );
+}
+
 export default function Chart({
   chart,
+  presenting,
   onFit,
-  onReorderWithinBay,
+  onEditBlock,
+  onAddToBay,
+  onRenameBay,
+  onRemoveBay,
   onSizeChange,
 }: ChartProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -74,10 +204,6 @@ export default function Chart({
     return () => observer.disconnect();
   }, []);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-  );
-
   const r = size.width > 0 && size.height > 0 ? layout(chart, size) : null;
   if (!r) return <div className="chart" ref={ref} />;
 
@@ -93,20 +219,6 @@ export default function Chart({
       return [bay, over] as const;
     }),
   );
-
-  const handleDragEnd = (e: DragEndEvent) => {
-    const { active, over } = e;
-    if (!over || active.id === over.id) return;
-    const activeBlock = chart.blocks.find((b) => b.id === active.id);
-    const overBlock = chart.blocks.find((b) => b.id === over.id);
-    if (!activeBlock || !overBlock || activeBlock.bay !== overBlock.bay) return;
-    const items = blocksByBay.get(activeBlock.bay) ?? [];
-    const from = items.findIndex((b) => b.id === activeBlock.id);
-    const to = items.findIndex((b) => b.id === overBlock.id);
-    if (from >= 0 && to >= 0 && from !== to) {
-      onReorderWithinBay(activeBlock.bay, from, to);
-    }
-  };
 
   return (
     <div className="chart" ref={ref}>
@@ -137,60 +249,63 @@ export default function Chart({
         </>
       )}
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        {r.bayHeaders.map((h) => {
-          const items = blocksByBay.get(h.bay) ?? [];
-          return (
-            <div
-              key={h.bay}
-              className="bay-column"
-              style={{
-                left: h.x + COLUMN_PADDING,
-                top: r.plot.y,
-                width: Math.max(0, h.w - COLUMN_PADDING * 2),
-                height: r.plot.h,
-              }}
-            >
-              <SortableContext
-                items={items.map((b) => b.id)}
-                strategy={bottomStackSortingStrategy}
-              >
-                {items.map((b) => {
-                  const rect = rectById.get(b.id);
-                  return rect ? <SortableBlock key={b.id} rect={rect} /> : null;
-                })}
-              </SortableContext>
-            </div>
-          );
-        })}
-      </DndContext>
+      {r.bayHeaders.map((h) => (
+        <BayColumn
+          key={h.bay}
+          bay={h.bay}
+          items={blocksByBay.get(h.bay) ?? []}
+          rectById={rectById}
+          presenting={presenting}
+          onEditBlock={onEditBlock}
+          style={{
+            left: h.x + COLUMN_PADDING,
+            top: r.plot.y,
+            width: Math.max(0, h.w - COLUMN_PADDING * 2),
+            height: r.plot.h,
+          }}
+        />
+      ))}
 
       {r.bayHeaders.map((h) => {
+        // Floats just above the stack, but never rides up into the bay name:
+        // an overflowing column parks its total in the band between the two.
         const totalY = Math.min(
-          Math.max(h.topY - 20, r.plot.y - 20),
-          plotBottom - 20,
+          Math.max(h.topY - 22, r.plot.y - 18),
+          plotBottom - 22,
         );
         return (
           <div key={h.bay} className="chart-group">
-            <div className="bay-name" style={{ left: h.x, width: h.w, top: 8 }}>
-              {h.bay}
+            <div className="bay-header" style={{ left: h.x, width: h.w, top: 8 }}>
+              <BayHeader
+                bay={h.bay}
+                canRemove={chart.bays.length > 1}
+                presenting={presenting}
+                onAdd={() => onAddToBay(h.bay)}
+                onRename={(to) => onRenameBay(h.bay, to)}
+                onRemove={() => onRemoveBay(h.bay)}
+              />
             </div>
+            {/* SPEC 7: the total sits just above the topmost block. It is
+                never recolored when the column exceeds takt -- the height
+                against the dotted line is the message. */}
             <div className="bay-total" style={{ left: h.x, width: h.w, top: totalY }}>
               {formatMinutes(h.totalMinutes)}
             </div>
+            {/* SPEC 6: an over-axis column is never clipped silently. The
+                marker says by how much and runs Fit. */}
             {overflowByBay.has(h.bay) && (
-              <button
-                className="overflow-chevron"
+              <div
+                className="overflow-slot"
                 style={{ left: h.x, width: h.w, top: r.plot.y + 4 }}
-                title="Column exceeds the axis. Click to fit."
-                onClick={onFit}
               >
-                ^ +{formatMinutes(overflowByBay.get(h.bay) ?? 0)} min
-              </button>
+                <button
+                  className="overflow-chevron"
+                  title="Column exceeds the axis. Click to fit."
+                  onClick={onFit}
+                >
+                  ^ +{formatMinutes(overflowByBay.get(h.bay) ?? 0)} min
+                </button>
+              </div>
             )}
           </div>
         );

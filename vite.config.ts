@@ -1,5 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -14,6 +15,8 @@ import { playwright } from '@vitest/browser-playwright';
 // The rule is the SPA fallback: /yamazumi/animate has no file behind it, and
 // existing files still win over the rewrite.
 const REDIRECTS = '/yamazumi/* /yamazumi/index.html 200\n';
+
+const EMPTY_SHIM = fileURLToPath(new URL('./src/shims/empty.ts', import.meta.url));
 
 function pagesRedirects(): Plugin {
   let outDir = '';
@@ -41,9 +44,12 @@ export default defineConfig({
   resolve: {
     alias: {
       // jsPDF's optional DOM-rasterization deps; see src/shims/empty.ts.
-      html2canvas: '/src/shims/empty.ts',
-      canvg: '/src/shims/empty.ts',
-      dompurify: '/src/shims/empty.ts',
+      // Absolute: the dep optimizer resolves aliases relative to the module
+      // being rewritten, so a root-relative '/src/...' becomes
+      // 'node_modules/../src/...' and fails to load.
+      html2canvas: EMPTY_SHIM,
+      canvg: EMPTY_SHIM,
+      dompurify: EMPTY_SHIM,
     },
   },
   test: {

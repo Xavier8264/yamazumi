@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { layout } from '../model/layout';
-import { renderStill, usedLegendEntries } from './canvasRenderer';
+import { legendEntriesFor, renderStill, usedLegendEntries } from './canvasRenderer';
 import { PARKING } from '../model/types';
 import type { ChartState } from '../model/types';
 
@@ -21,7 +21,8 @@ const VIEWPORT = { width: 800, height: 600 };
 describe('renderStill: output dimensions', () => {
   it('renders at exactly 3x pixel ratio with no legend and no parking', () => {
     const canvas = document.createElement('canvas');
-    const size = renderStill(canvas, state(), VIEWPORT, {
+    // No category in use and no takt, so no legend band is added.
+    const size = renderStill(canvas, state({ taktMinutes: null }), VIEWPORT, {
       pixelRatio: 3,
       includeParking: false,
     });
@@ -30,7 +31,7 @@ describe('renderStill: output dimensions', () => {
     expect(size).toEqual({ width: 800, height: 600 });
   });
 
-  it('adds a legend band only when a category is in use', () => {
+  it('adds a legend band only when there is something to name', () => {
     const canvas = document.createElement('canvas');
     const withUse = state({
       blocks: [
@@ -40,12 +41,27 @@ describe('renderStill: output dimensions', () => {
     renderStill(canvas, withUse, VIEWPORT, { pixelRatio: 3, includeParking: false });
     expect(canvas.height).toBeGreaterThan(600 * 3);
 
-    const unused = state({
+    // No category in use and no takt: nothing to legend, so no band.
+    const bare = state({
+      taktMinutes: null,
       blocks: [{ id: 'a', bay: 'Bay 1', process: 'Weld', minutes: 30, category: null }],
     });
-    renderStill(canvas, unused, VIEWPORT, { pixelRatio: 3, includeParking: false });
+    renderStill(canvas, bare, VIEWPORT, { pixelRatio: 3, includeParking: false });
     expect(canvas.height).toBe(600 * 3);
-    expect(usedLegendEntries(unused)).toEqual([]);
+    expect(usedLegendEntries(bare)).toEqual([]);
+  });
+
+  it('legends the takt rule even when no category is in use', () => {
+    const canvas = document.createElement('canvas');
+    const taktOnly = state({
+      taktMinutes: 60,
+      blocks: [{ id: 'a', bay: 'Bay 1', process: 'Weld', minutes: 30, category: null }],
+    });
+    renderStill(canvas, taktOnly, VIEWPORT, { pixelRatio: 3, includeParking: false });
+    expect(canvas.height).toBeGreaterThan(600 * 3);
+    expect(legendEntriesFor(taktOnly)).toEqual([
+      { name: 'Takt 60 min', color: '#E6A417', dashed: true },
+    ]);
   });
 
   it('adds a parking band only when requested and non-empty', () => {
@@ -63,7 +79,10 @@ describe('renderStill: output dimensions', () => {
 
   it('respects other pixel ratios', () => {
     const canvas = document.createElement('canvas');
-    renderStill(canvas, state(), VIEWPORT, { pixelRatio: 1, includeParking: false });
+    renderStill(canvas, state({ taktMinutes: null }), VIEWPORT, {
+      pixelRatio: 1,
+      includeParking: false,
+    });
     expect(canvas.width).toBe(800);
     expect(canvas.height).toBe(600);
   });
@@ -92,11 +111,13 @@ describe('renderStill: paints layout() geometry', () => {
     expect([red, green, blue]).toEqual([198, 40, 40]);
   });
 
-  it('paints the background white outside the plot', () => {
+  // SPEC 5: an export has to look like the screen, and the screen is the Bay
+  // Tracker dark surface (--bt-bg #11161C).
+  it('paints the page background outside the plot', () => {
     const canvas = document.createElement('canvas');
     renderStill(canvas, state(), VIEWPORT, { pixelRatio: 1, includeParking: false });
     const ctx = canvas.getContext('2d')!;
     const [red, green, blue] = ctx.getImageData(2, 2, 1, 1).data;
-    expect([red, green, blue]).toEqual([255, 255, 255]);
+    expect([red, green, blue]).toEqual([0x11, 0x16, 0x1c]);
   });
 });

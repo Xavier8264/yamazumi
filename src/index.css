@@ -1,3 +1,10 @@
+@import './theme.css';
+
+/* Yamazumi editor, styled with the Bay Tracker design system imported from
+   the Claude Design project. Plain CSS, no component library (CLAUDE.md).
+   Chart geometry is never expressed here: every position comes from layout()
+   as an inline style. These rules only paint. */
+
 * {
   box-sizing: border-box;
 }
@@ -10,26 +17,119 @@ body,
 }
 
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  font-size: 14px;
-  color: #1f2328;
-  background: #ffffff;
+  font-family: var(--bt-font);
+  font-size: var(--bt-fs-nav);
+  color: var(--bt-text);
+  background: var(--bt-bg);
+  overflow: hidden;
 }
 
 button {
   font: inherit;
-  padding: 4px 12px;
-  border: 1px solid #c8ccd2;
-  border-radius: 4px;
-  background: #f6f8fa;
+  font-family: var(--bt-font);
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
   cursor: pointer;
 }
 
-button:hover {
-  background: #eef1f4;
+input {
+  font-family: var(--bt-font);
 }
 
-/* --- Frame ------------------------------------------------------------ */
+.spacer {
+  flex: 1;
+}
+
+/* --- Design system: Button --------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bt-space-3);
+  border: 1px solid var(--bt-border);
+  border-radius: var(--bt-radius-sm);
+  background: var(--bt-panel-2);
+  color: var(--bt-text);
+  font-weight: var(--bt-w-bold);
+  line-height: 1.1;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: filter 0.1s ease, border-color 0.1s ease;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.btn-md {
+  padding: 10px 14px;
+  font-size: 15px;
+}
+
+.btn-lg {
+  padding: 14px 18px;
+  font-size: 16px;
+}
+
+.btn-icon {
+  font-style: normal;
+  opacity: 0.9;
+}
+
+.btn-primary {
+  background: var(--bt-accent);
+  border-color: var(--bt-accent);
+  color: #fff;
+}
+
+.btn-danger {
+  background: var(--bt-delayed);
+  border-color: var(--bt-delayed);
+  color: #fff;
+}
+
+.btn-good {
+  background: var(--bt-running);
+  border-color: var(--bt-running);
+  color: #fff;
+}
+
+.btn-warn {
+  background: var(--bt-done);
+  border-color: var(--bt-done);
+  color: var(--bt-done-text);
+}
+
+.btn-violet {
+  background: var(--bt-violet);
+  border-color: var(--bt-violet);
+  color: #fff;
+}
+
+.btn-default:hover:not(:disabled) {
+  border-color: var(--bt-accent);
+}
+
+.btn:not(.btn-default):hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn:focus-visible,
+.bay-btn:focus-visible,
+.modal-close:focus-visible {
+  outline: 2px solid var(--bt-accent);
+  outline-offset: 2px;
+}
+
+/* --- Top bar ------------------------------------------------------------ */
 
 .editor {
   display: flex;
@@ -40,90 +140,98 @@ button:hover {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid #d9dde2;
-  background: #fafbfc;
+  gap: var(--bt-space-4);
+  padding: var(--bt-space-4) var(--bt-space-6);
+  background: var(--bt-panel);
+  border-bottom: 1px solid var(--bt-border);
+  flex-wrap: wrap;
 }
 
-.export-menu {
-  position: relative;
-}
-
-.export-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 100;
-  min-width: 180px;
-  background: #ffffff;
-  border: 1px solid #c8ccd2;
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-}
-
-.export-item {
-  border: none;
-  background: transparent;
-  text-align: left;
-  padding: 6px 10px;
-  border-radius: 4px;
-}
-
-.export-check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-top: 1px solid #eceff1;
-  margin-top: 4px;
-  color: #57606a;
+.brand {
+  font-size: 11px;
+  letter-spacing: var(--bt-track-caps);
+  color: var(--bt-muted);
+  font-weight: var(--bt-w-medium);
 }
 
 .topbar-sep {
   width: 1px;
-  align-self: stretch;
-  background: #d9dde2;
-  margin: 0 4px;
+  height: 34px;
+  background: var(--bt-border);
+  flex: none;
 }
 
-.field {
+.topbar-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--bt-space-3);
 }
 
-.field input {
-  font: inherit;
-  width: 64px;
-  padding: 3px 6px;
-  border: 1px solid #c8ccd2;
-  border-radius: 4px;
+.numfield {
+  display: flex;
+  align-items: center;
+  gap: var(--bt-space-3);
 }
 
-/* --- Banners ----------------------------------------------------------- */
+.numfield-label {
+  font-size: var(--bt-fs-tlabel);
+  letter-spacing: var(--bt-track-label);
+  color: var(--bt-muted);
+  font-weight: var(--bt-w-medium);
+}
+
+.numfield input {
+  width: 74px;
+  background: var(--bt-panel-2);
+  border: 1px solid var(--bt-border);
+  border-radius: var(--bt-radius-sm);
+  color: var(--bt-text);
+  font-size: var(--bt-fs-body);
+  font-weight: var(--bt-w-bold);
+  padding: 7px 10px;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.numfield input:focus {
+  border-color: var(--bt-accent);
+}
+
+.checkfield {
+  display: flex;
+  align-items: center;
+  gap: var(--bt-space-2);
+  font-size: var(--bt-fs-tlabel);
+  color: var(--bt-muted);
+  font-weight: var(--bt-w-medium);
+  cursor: pointer;
+}
+
+.checkfield input {
+  accent-color: var(--bt-accent);
+}
+
+/* --- Banners ------------------------------------------------------------ */
 
 .banner {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 6px 12px;
-  border-bottom: 1px solid #d9dde2;
+  gap: var(--bt-space-5);
+  padding: var(--bt-space-3) var(--bt-space-6);
+  border-bottom: 1px solid var(--bt-border);
+  font-size: var(--bt-fs-hint);
 }
 
-.banner.recovery {
-  background: #fff8e1;
-}
-
+.banner.recovery,
 .banner.warning {
-  background: #fff8e1;
+  background: rgba(230, 164, 23, 0.12);
+  box-shadow: inset 3px 0 0 var(--bt-warn);
 }
 
 .banner.error {
-  background: #fdecea;
+  background: rgba(255, 90, 90, 0.12);
+  box-shadow: inset 3px 0 0 var(--bt-bad);
+  color: var(--bt-bad);
 }
 
 .banner-messages {
@@ -131,7 +239,7 @@ button:hover {
   min-width: 0;
 }
 
-/* --- Chart ------------------------------------------------------------- */
+/* --- Chart -------------------------------------------------------------- */
 
 .chart {
   position: relative;
@@ -149,141 +257,582 @@ button:hover {
 .takt-line,
 .takt-label,
 .bay-column,
-.bay-name,
+.bay-header,
 .bay-total,
-.overflow-chevron {
+.overflow-slot {
   position: absolute;
-}
-
-.bay-column {
-  display: flex;
-  flex-direction: column-reverse;
 }
 
 .gridline {
   height: 0;
-  border-top: 1px solid #eceff1;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .gridline.baseline {
-  border-top: 1px solid #90a4ae;
+  border-top: 1px solid var(--bt-border);
 }
 
 .tick-label {
   left: 0;
   text-align: right;
-  font-size: 12px;
-  color: #57606a;
+  font-size: var(--bt-fs-tlabel);
+  color: var(--bt-muted);
+  font-weight: var(--bt-w-medium);
+  font-variant-numeric: tabular-nums;
 }
 
+/* Above the columns, not behind them: the whole point of the line is
+   comparing it against every stack, so it must not disappear under the
+   blocks. The canvas renderer paints it last for the same reason. */
 .takt-line {
   height: 0;
-  border-top: 2px dotted #37474f;
+  border-top: 2px dashed var(--bt-warn);
+  opacity: 0.9;
   pointer-events: none;
+  z-index: 2;
 }
 
 .takt-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #37474f;
+  font-size: var(--bt-fs-tlabel);
+  font-weight: var(--bt-w-bold);
+  color: var(--bt-warn);
   white-space: nowrap;
+  z-index: 2;
+}
+
+/* Columns are bottom-anchored: column-reverse puts array index 0 at the
+   baseline so DOM order matches array order (SPEC 9.3). */
+.bay-column {
+  display: flex;
+  flex-direction: column-reverse;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--bt-space-2);
+  /* The foot rule is an inset shadow, not a border: a border would eat 2px of
+     the column's content box and lift the index-0 block off the baseline that
+     layout() put it on, so the DOM and an export would disagree (SPEC 5). */
+  box-shadow: inset 0 -2px 0 var(--bt-border);
+  transition: background 0.12s ease;
+  /* A bay whose total exceeds the axis would otherwise spill up out of the
+     plot and over the bay name. SPEC 6 says do not clip SILENTLY -- so it is
+     clipped here and the overflow chevron says by how much. */
+  overflow: hidden;
+}
+
+.bay-column.over {
+  background: rgba(74, 134, 255, 0.1);
 }
 
 .block {
   position: relative;
   width: 100%;
   flex: none;
-  border: 1px solid rgba(0, 0, 0, 0.25);
-  border-radius: 2px;
+  border-radius: 4px;
   overflow: hidden;
   display: flex;
   align-items: center;
-  justify-content: center;
   cursor: grab;
   touch-action: none;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
 
 .block.dragging {
-  opacity: 0.85;
-  z-index: 10;
+  opacity: 0.18;
+  filter: grayscale(1);
   cursor: grabbing;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .block-label {
-  font-size: 12px;
-  line-height: 16px;
-  padding: 0 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bay-total {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bt-space-3);
+  padding: 0 9px;
+  font-size: var(--block-fs, 13px);
+  font-weight: var(--bt-w-bold);
+  line-height: 1.15;
   pointer-events: none;
 }
 
-.bay-name {
-  text-align: center;
-  font-weight: 600;
-  white-space: nowrap;
+.block-name {
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 8px;
+  white-space: nowrap;
 }
 
+.block-min {
+  flex: none;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.bay-header {
+  display: flex;
+  align-items: center;
+  gap: var(--bt-space-2);
+  padding: 0 var(--bt-space-2);
+}
+
+.bay-name {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--bt-space-2);
+  color: var(--bt-text);
+  font-size: var(--bt-fs-bayname);
+  font-weight: var(--bt-w-bold);
+  padding: 3px 6px;
+  outline: none;
+  text-align: center;
+  text-overflow: ellipsis;
+}
+
+.bay-name:hover {
+  border-color: var(--bt-border);
+}
+
+.bay-name:focus {
+  border-color: var(--bt-accent);
+  background: var(--bt-panel-2);
+}
+
+.bay-name-static {
+  flex: 1;
+  text-align: center;
+  font-size: var(--bt-fs-bayname);
+  font-weight: var(--bt-w-bold);
+}
+
+.bay-btn {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--bt-space-2);
+  border: 1px solid var(--bt-border);
+  background: transparent;
+  color: var(--bt-muted);
+  font-size: var(--bt-fs-tlabel);
+  line-height: 1;
+}
+
+.bay-btn:hover:not(:disabled) {
+  border-color: var(--bt-accent);
+  color: var(--bt-text);
+}
+
+.bay-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* SPEC 7: the total is never recolored when a column exceeds takt. Height
+   against the dotted line is the message; highlighting adds noise. */
 .bay-total {
   text-align: center;
-  font-size: 12px;
-  color: #57606a;
+  font-size: var(--bt-fs-nav);
+  font-weight: var(--bt-w-heavy);
+  color: var(--bt-text);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 
+.overflow-slot {
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Opaque, because it sits on top of the block it is clipping. */
 .overflow-chevron {
-  background: #fff3e0;
-  border: 1px solid #ef6c00;
-  color: #b45309;
-  font-size: 12px;
-  padding: 1px 4px;
+  background: var(--bt-panel);
+  border: 1px solid var(--bt-warn);
+  color: var(--bt-warn);
+  font-size: var(--bt-fs-tlabel);
+  font-weight: var(--bt-w-bold);
+  padding: 2px 8px;
+  border-radius: var(--bt-radius-pill);
+  pointer-events: auto;
+  box-shadow: var(--bt-shadow-float);
+}
+
+.overflow-chevron:hover {
+  background: var(--bt-panel-2);
+}
+
+/* --- Legend ------------------------------------------------------------- */
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--bt-space-6);
+  padding: var(--bt-space-3) var(--bt-space-8);
+  flex-wrap: wrap;
+  flex: none;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--bt-fs-hint);
+  color: var(--bt-muted);
+  font-weight: var(--bt-w-medium);
+}
+
+.legend-swatch {
+  width: 13px;
+  height: 13px;
   border-radius: 3px;
-  width: auto;
+}
+
+.legend-takt {
+  width: 22px;
+  height: 0;
+  border-top: 2px dashed var(--bt-warn);
 }
 
 /* --- Parking lot -------------------------------------------------------- */
 
+/* SPEC 8: fixed-height chips, dashed and muted, deliberately a different
+   visual language from the chart so the tray never reads as a fifth bay. */
 .parking {
-  border-top: 1px solid #d9dde2;
-  background: #fafbfc;
+  flex: none;
+  background: var(--bt-panel);
+  border-top: 1px solid var(--bt-border);
 }
 
 .parking-header {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: var(--bt-space-4);
   width: 100%;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  padding: 8px 12px;
-  font-style: italic;
-  color: #57606a;
+  height: 34px;
+  padding: 0 var(--bt-space-8);
+  border-bottom: 1px solid var(--bt-border);
+  text-align: left;
+}
+
+.parking-caret {
+  color: var(--bt-muted);
+  font-size: var(--bt-fs-tlabel);
+  width: 10px;
+}
+
+.parking-title {
+  font-size: var(--bt-fs-tlabel);
+  letter-spacing: var(--bt-track-caps);
+  color: var(--bt-muted);
+  font-weight: var(--bt-w-bold);
+}
+
+.parking-count,
+.parking-hint {
+  font-size: var(--bt-fs-tlabel);
+  color: var(--bt-muted);
+}
+
+.parking-hint {
+  opacity: 0.7;
 }
 
 .parking-body {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 0 12px 10px;
-  max-height: 120px;
-  overflow-y: auto;
+  align-items: center;
+  gap: var(--bt-space-3);
+  padding: var(--bt-space-5) var(--bt-space-8);
+  min-height: 60px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  transition: background 0.12s ease;
+}
+
+.parking-body.over {
+  background: rgba(74, 134, 255, 0.1);
 }
 
 .parking-chip {
+  flex: none;
   display: inline-flex;
   align-items: center;
+  gap: var(--bt-space-3);
   height: 32px;
-  padding: 0 12px;
-  border: 1px dashed #90a4ae;
-  border-radius: 16px;
-  background: #eceff1;
-  color: #37474f;
+  max-width: 260px;
+  padding: 0 var(--bt-space-5);
+  border: 1px dashed var(--bt-border);
+  border-radius: var(--bt-radius-chip);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--bt-text);
+  font-size: var(--bt-fs-hint);
+  font-weight: var(--bt-w-medium);
   white-space: nowrap;
+  cursor: grab;
+  touch-action: none;
+}
+
+.parking-chip:hover {
+  border-color: var(--bt-accent);
+}
+
+.parking-chip.dragging {
+  opacity: 0.18;
+}
+
+.chip-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--bt-radius-pill);
+}
+
+.chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip-min {
+  flex: none;
+  color: var(--bt-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.parking-empty {
+  font-size: var(--bt-fs-hint);
+  color: var(--bt-muted);
+  opacity: 0.7;
+}
+
+/* --- Drag ghost --------------------------------------------------------- */
+
+.drag-ghost {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--bt-panel-2);
+  color: var(--bt-text);
+  font-size: var(--bt-fs-hint);
+  font-weight: var(--bt-w-bold);
+  padding: 0 var(--bt-space-3);
+  gap: var(--bt-space-3);
+  white-space: nowrap;
+  box-shadow: var(--bt-shadow-drag);
+  outline: 2px solid rgba(255, 255, 255, 0.35);
+  transform: scale(1.03);
+  cursor: grabbing;
+}
+
+.drag-ghost .block-label {
+  padding: 0;
+}
+
+/* --- Modal -------------------------------------------------------------- */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--bt-scrim);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  width: 400px;
+  max-width: 92vw;
+  background: var(--bt-panel);
+  border: 1px solid var(--bt-border);
+  border-radius: var(--bt-radius);
+  box-shadow: var(--bt-shadow-float);
+  padding: var(--bt-space-7) var(--bt-space-8) var(--bt-space-8);
+  position: relative;
+  animation: ymz-in 0.14s ease-out;
+}
+
+/* SPEC 9.2: every modal has an X in its top right corner. No exceptions. */
+.modal-close {
+  position: absolute;
+  top: var(--bt-space-5);
+  right: var(--bt-space-5);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--bt-radius-sm);
+  border: 1px solid var(--bt-border);
+  background: var(--bt-panel-2);
+  color: var(--bt-text);
+  font-size: var(--bt-fs-nav);
+  line-height: 1;
+}
+
+.modal-close:hover {
+  border-color: var(--bt-accent);
+}
+
+.modal-title {
+  font-size: var(--bt-fs-modal-h2);
+  font-weight: var(--bt-w-bold);
+}
+
+.modal-sub {
+  font-size: var(--bt-fs-hint);
+  color: var(--bt-muted);
+  margin-top: var(--bt-space-1);
+}
+
+.modal-error {
+  font-size: var(--bt-fs-hint);
+  color: var(--bt-bad);
+  margin-top: var(--bt-space-3);
+  font-weight: var(--bt-w-medium);
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--bt-space-3);
+  margin-top: var(--bt-space-7);
+  align-items: center;
+}
+
+/* --- Design system: Field ---------------------------------------------- */
+
+.dsfield {
+  position: relative;
+}
+
+.dsfield-label {
+  display: block;
+  font-size: var(--bt-fs-hint);
+  color: var(--bt-muted);
+  margin: var(--bt-space-3) 0 var(--bt-space-1);
+}
+
+.dsfield-control {
+  font-size: var(--bt-fs-body);
+  background: var(--bt-panel);
+  color: var(--bt-text);
+  border: 1px solid var(--bt-border);
+  border-radius: var(--bt-radius-sm);
+  padding: var(--bt-space-4) var(--bt-space-5);
+  width: 100%;
+  outline: none;
+}
+
+.dsfield-control:focus {
+  border-color: var(--bt-accent);
+}
+
+.dsfield-hint {
+  font-size: var(--bt-fs-tlabel);
+  color: var(--bt-muted);
+  margin-top: var(--bt-space-1);
+}
+
+/* --- Category combobox (SPEC 9.2) --------------------------------------- */
+
+.combo {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.combo-input {
+  padding-left: 34px;
+}
+
+.combo-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex: none;
+}
+
+.combo > .combo-swatch {
+  position: absolute;
+  left: var(--bt-space-4);
+  pointer-events: none;
+}
+
+.combo-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  margin: var(--bt-space-1) 0 0;
+  padding: var(--bt-space-1);
+  list-style: none;
+  z-index: 10;
+  background: var(--bt-panel-2);
+  border: 1px solid var(--bt-border);
+  border-radius: var(--bt-radius-sm);
+  box-shadow: var(--bt-shadow-float);
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.combo-option {
+  display: flex;
+  align-items: center;
+  gap: var(--bt-space-3);
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: var(--bt-space-2);
+  font-size: var(--bt-fs-nav);
+  text-align: left;
+}
+
+.combo-option.active {
+  background: rgba(74, 134, 255, 0.18);
+}
+
+/* --- Toast -------------------------------------------------------------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  background: var(--bt-panel-2);
+  border: 1px solid var(--bt-border);
+  border-radius: var(--bt-space-4);
+  padding: var(--bt-space-4) var(--bt-space-6);
+  font-size: var(--bt-fs-nav);
+  font-weight: var(--bt-w-medium);
+  box-shadow: var(--bt-shadow-toast);
+  z-index: 400;
+}
+
+/* --- Presentation mode (SPEC 12.3) -------------------------------------- */
+
+/* Top bar and parking lot are unmounted by the Editor. What is left is the
+   chart at larger type, sized for a screen capture. Esc exits; there is
+   deliberately no exit button, because it would land in the capture. */
+.presenting .tick-label {
+  font-size: var(--bt-fs-body);
+}
+
+.presenting .bay-name-static {
+  font-size: 26px;
+}
+
+.presenting .bay-total {
+  font-size: 21px;
+}
+
+.presenting .takt-label {
+  font-size: var(--bt-fs-nav);
+}
+
+.presenting .block-label {
+  font-size: calc(var(--block-fs, 13px) * 1.3);
+}
+
+.presenting .legend {
+  padding: var(--bt-space-5) var(--bt-space-9);
+}
+
+.presenting .legend-item {
+  font-size: var(--bt-fs-bayname);
 }

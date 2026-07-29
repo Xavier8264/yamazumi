@@ -12,6 +12,7 @@ import {
 import type { Animation, EasingName } from '../render/interpolate';
 import { checkEncodeSupport, encodeMp4 } from '../video/encode';
 import type { EncodeSupport } from '../video/encode';
+import Button from '../components/Button';
 import '../animate.css';
 
 // SPEC 13: the transition animator. Lazy-loaded so nothing here (including
@@ -222,14 +223,15 @@ export default function Animate() {
             className="preview-canvas"
           />
           <div className="player-row">
-            <button
+            <Button
+              size="sm"
               onClick={() => {
                 if (!playing && t >= 1) setT(0);
                 setPlaying(!playing);
               }}
             >
               {playing ? 'Pause' : 'Play'}
-            </button>
+            </Button>
             <input
               className="scrubber"
               type="range"
@@ -309,14 +311,16 @@ function ExportMp4Button({
 
   return (
     <>
-      <button
+      <Button
+        size="sm"
+        variant="primary"
         disabled={!support || !support.supported || progress !== null}
         onClick={() => void run()}
       >
         {progress !== null
           ? 'Encoding ' + Math.round(progress * 100) + '%'
           : 'Export MP4'}
-      </button>
+      </Button>
       {support && !support.supported && (
         <span className="export-unsupported">{support.reason}</span>
       )}

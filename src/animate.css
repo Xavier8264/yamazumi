@@ -1,10 +1,15 @@
+/* SPEC 13 route, on the same Bay Tracker dark surface as the editor.
+   Tokens come from theme.css via index.css, which is loaded by main.tsx. */
+
 .animate {
   max-width: 1040px;
   margin: 0 auto;
-  padding: 16px 20px 40px;
+  padding: var(--bt-space-6) var(--bt-space-8) 40px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--bt-gap);
+  height: 100%;
+  overflow-y: auto;
 }
 
 .animate-top {
@@ -14,13 +19,25 @@
 }
 
 .animate-top h1 {
-  font-size: 20px;
+  font-size: var(--bt-fs-modal-h2);
+  font-weight: var(--bt-w-bold);
   margin: 0;
+}
+
+.animate-top a {
+  color: var(--bt-accent);
+  text-decoration: none;
+  font-size: var(--bt-fs-hint);
+  font-weight: var(--bt-w-medium);
+}
+
+.animate-top a:hover {
+  text-decoration: underline;
 }
 
 .dropzones {
   display: flex;
-  gap: 12px;
+  gap: var(--bt-space-5);
 }
 
 .dropzone {
@@ -28,84 +45,105 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 22px 12px;
-  border: 2px dashed #c8ccd2;
-  border-radius: 8px;
-  background: #fafbfc;
-  color: #57606a;
+  gap: var(--bt-space-2);
+  padding: 22px var(--bt-space-5);
+  border: 2px dashed var(--bt-border);
+  border-radius: var(--bt-radius-sm);
+  background: var(--bt-panel);
+  color: var(--bt-muted);
   cursor: pointer;
   text-align: center;
 }
 
 .dropzone.over {
-  border-color: #1f6feb;
-  background: #eef4ff;
+  border-color: var(--bt-accent);
+  background: rgba(74, 134, 255, 0.1);
 }
 
 .dropzone.loaded {
   border-style: solid;
-  border-color: #2e7d32;
-  color: #1f2328;
+  border-color: var(--bt-good);
+  color: var(--bt-text);
 }
 
 .animate-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: var(--bt-space-6);
   align-items: center;
 }
 
-.animate-controls input,
-.animate-controls select {
-  font: inherit;
-  padding: 3px 6px;
-  border: 1px solid #c8ccd2;
-  border-radius: 4px;
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--bt-space-2);
+  font-size: var(--bt-fs-hint);
+  color: var(--bt-muted);
+  font-weight: var(--bt-w-medium);
 }
 
-.animate-controls input {
-  width: 80px;
+.field input,
+.field select {
+  font: inherit;
+  font-family: var(--bt-font);
+  color: var(--bt-text);
+  background: var(--bt-panel-2);
+  padding: 6px 9px;
+  border: 1px solid var(--bt-border);
+  border-radius: var(--bt-radius-sm);
+  outline: none;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--bt-accent);
+}
+
+.field input {
+  width: 90px;
+  font-variant-numeric: tabular-nums;
 }
 
 .match-summary {
-  font-weight: 600;
+  font-weight: var(--bt-w-medium);
+  color: var(--bt-text);
 }
 
 .preview-wrap {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--bt-space-4);
 }
 
 .preview-canvas {
   width: 100%;
   height: auto;
-  border: 1px solid #d9dde2;
-  border-radius: 6px;
-  background: #ffffff;
+  border: 1px solid var(--bt-border);
+  border-radius: var(--bt-space-2);
+  background: var(--bt-bg);
 }
 
 .player-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--bt-space-5);
 }
 
 .scrubber {
   flex: 1;
+  accent-color: var(--bt-accent);
 }
 
-.animate-hint {
-  color: #57606a;
+.animate-hint,
+.export-progress {
+  color: var(--bt-muted);
 }
 
 .export-progress {
   font-variant-numeric: tabular-nums;
-  color: #57606a;
 }
 
 .export-unsupported {
-  color: #b45309;
-  font-size: 13px;
+  color: var(--bt-warn);
+  font-size: var(--bt-fs-hint);
 }

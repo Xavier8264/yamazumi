@@ -1,4 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import Button from './Button';
+
+// The design's toolbar: a lettered brand mark, then action groups separated
+// by hairline rules, then the numeric fields pushed to the right edge.
+// Contents follow SPEC 7: New / Open / Export, Undo / Redo, Takt / Axis / Fit,
+// Present. Icons are ASCII per CLAUDE.md, not the design's Unicode glyphs.
 
 interface NumberFieldProps {
   label: string;
@@ -7,7 +14,7 @@ interface NumberFieldProps {
   onCommit: (value: number | null) => void;
 }
 
-// Commits on blur or Enter so the scale never jumps mid-keystroke.
+// Commits on blur or Enter so the scale never jumps mid-keystroke (SPEC 6).
 function NumberField({ label, value, allowBlank, onCommit }: NumberFieldProps) {
   const [text, setText] = useState(value === null ? '' : String(value));
 
@@ -30,8 +37,8 @@ function NumberField({ label, value, allowBlank, onCommit }: NumberFieldProps) {
   };
 
   return (
-    <label className="field">
-      <span>{label}</span>
+    <label className="numfield">
+      <span className="numfield-label">{label}</span>
       <input
         value={text}
         inputMode="decimal"
@@ -48,91 +55,88 @@ function NumberField({ label, value, allowBlank, onCommit }: NumberFieldProps) {
 interface TopBarProps {
   taktMinutes: number | null;
   axisMaxMinutes: number;
+  canUndo: boolean;
+  canRedo: boolean;
   onNew: () => void;
   onOpenText: (text: string) => void;
+  onAddBlock: () => void;
+  onAddBay: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
   onExportCsv: () => void;
   onExportPng: (includeParking: boolean) => void;
   onExportPdf: (includeParking: boolean) => void;
   onTaktChange: (value: number | null) => void;
   onAxisMaxChange: (value: number) => void;
   onFit: () => void;
-}
-
-function ExportMenu(props: {
-  onExportCsv: () => void;
-  onExportPng: (includeParking: boolean) => void;
-  onExportPdf: (includeParking: boolean) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [includeParking, setIncludeParking] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  const item = (label: string, action: () => void) => (
-    <button
-      className="export-item"
-      onClick={() => {
-        setOpen(false);
-        action();
-      }}
-    >
-      {label}
-    </button>
-  );
-
-  return (
-    <div className="export-menu" ref={wrapRef}>
-      <button onClick={() => setOpen(!open)} aria-expanded={open}>
-        Export v
-      </button>
-      {open && (
-        <div className="export-dropdown">
-          {item('Export CSV', props.onExportCsv)}
-          {item('Export PNG', () => props.onExportPng(includeParking))}
-          {item('Export PDF', () => props.onExportPdf(includeParking))}
-          <label className="export-check">
-            <input
-              type="checkbox"
-              checked={includeParking}
-              onChange={(e) => setIncludeParking(e.target.checked)}
-            />
-            Include parking lot
-          </label>
-        </div>
-      )}
-    </div>
-  );
+  onPresent: () => void;
 }
 
 export default function TopBar(props: TopBarProps) {
   const fileRef = useRef<HTMLInputElement>(null);
+  // SPEC 12.2: image exports drop the parking lot unless this is ticked.
+  const [includeParking, setIncludeParking] = useState(false);
 
   return (
     <div className="topbar">
-      <button onClick={props.onNew}>New</button>
-      <button onClick={() => fileRef.current?.click()}>Open</button>
-      <ExportMenu
-        onExportCsv={props.onExportCsv}
-        onExportPng={props.onExportPng}
-        onExportPdf={props.onExportPdf}
-      />
+      <div className="brand">YAMAZUMI</div>
+      <span className="topbar-sep" />
+
+      <div className="topbar-group">
+        <Button size="sm" variant="primary" icon="+" onClick={props.onAddBlock}>
+          Add block
+        </Button>
+        <Button size="sm" icon="+" onClick={props.onAddBay}>
+          Add bay
+        </Button>
+        <Button
+          size="sm"
+          icon="<-"
+          disabled={!props.canUndo}
+          onClick={props.onUndo}
+          title="Undo (Ctrl+Z)"
+        >
+          Undo
+        </Button>
+        <Button
+          size="sm"
+          icon="->"
+          disabled={!props.canRedo}
+          onClick={props.onRedo}
+          title="Redo (Ctrl+Shift+Z)"
+        >
+          Redo
+        </Button>
+      </div>
+
+      <span className="topbar-sep" />
+
+      <div className="topbar-group">
+        <Button size="sm" onClick={props.onNew}>
+          New
+        </Button>
+        <Button size="sm" onClick={() => fileRef.current?.click()}>
+          Open CSV
+        </Button>
+        <Button size="sm" onClick={props.onExportCsv}>
+          Export CSV
+        </Button>
+        <Button size="sm" onClick={() => props.onExportPng(includeParking)}>
+          PNG
+        </Button>
+        <Button size="sm" onClick={() => props.onExportPdf(includeParking)}>
+          PDF
+        </Button>
+        <label className="checkfield" title="Include the parking lot in PNG and PDF">
+          <input
+            type="checkbox"
+            checked={includeParking}
+            onChange={(e) => setIncludeParking(e.target.checked)}
+          />
+          Parking
+        </label>
+      </div>
+
       <input
         ref={fileRef}
         type="file"
@@ -147,24 +151,44 @@ export default function TopBar(props: TopBarProps) {
           input.value = '';
         }}
       />
+
       <span className="topbar-sep" />
-      <NumberField
-        label="Takt"
-        value={props.taktMinutes}
-        allowBlank={true}
-        onCommit={props.onTaktChange}
-      />
-      <NumberField
-        label="Axis"
-        value={props.axisMaxMinutes}
-        allowBlank={false}
-        onCommit={(v) => {
-          if (v !== null) props.onAxisMaxChange(v);
-        }}
-      />
-      <button onClick={props.onFit} title="Recompute the axis max to fit the chart">
-        Fit
-      </button>
+
+      <div className="topbar-group">
+        <Link className="btn btn-sm btn-violet" to="/animate">
+          <span className="btn-icon">&gt;&gt;</span>
+          Animate
+        </Link>
+        <Button size="sm" onClick={props.onPresent} title="Presentation mode (Esc exits)">
+          Present
+        </Button>
+      </div>
+
+      <div className="spacer" />
+
+      <div className="topbar-group">
+        <NumberField
+          label="TAKT"
+          value={props.taktMinutes}
+          allowBlank={true}
+          onCommit={props.onTaktChange}
+        />
+        <NumberField
+          label="AXIS"
+          value={props.axisMaxMinutes}
+          allowBlank={false}
+          onCommit={(v) => {
+            if (v !== null) props.onAxisMaxChange(v);
+          }}
+        />
+        <Button
+          size="sm"
+          onClick={props.onFit}
+          title="Recompute the axis max to fit the chart"
+        >
+          Fit
+        </Button>
+      </div>
     </div>
   );
 }

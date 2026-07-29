@@ -4,6 +4,14 @@ export function formatMinutes(n: number): string {
   return String(Math.round(n * 100) / 100);
 }
 
+// Label size inside a block. The design steps type down in short blocks so a
+// thin slice still reads. Presentation only -- whether a label is drawn at all
+// is layout()'s `labelFits` (SPEC 5). Shared by the DOM and canvas renderers
+// so the screen and an export agree.
+export function blockFontSize(height: number): number {
+  return height < 26 ? 11 : 13;
+}
+
 // Black text on light fills, white text on dark fills.
 export function textColorFor(hex: string): string {
   const raw = hex.replace('#', '');
