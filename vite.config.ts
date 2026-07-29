@@ -1,10 +1,40 @@
+import { writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
+import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { playwright } from '@vitest/browser-playwright';
 
+// The app is built into dist/yamazumi/ so that the files sit at the same paths
+// the bundle asks for (base is '/yamazumi/'). Cloudflare Pages then serves
+// dist/ as the project root and no path rewriting is needed anywhere.
+//
+// Pages only reads _redirects from the root of the deployed directory, which is
+// one level above outDir, so it cannot come from public/ and is written here.
+// The rule is the SPA fallback: /yamazumi/animate has no file behind it, and
+// existing files still win over the rewrite.
+const REDIRECTS = '/yamazumi/* /yamazumi/index.html 200\n';
+
+function pagesRedirects(): Plugin {
+  let outDir = '';
+  return {
+    name: 'pages-redirects',
+    apply: 'build',
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
+    closeBundle() {
+      writeFileSync(resolve(outDir, '..', '_redirects'), REDIRECTS);
+    },
+  };
+}
+
 export default defineConfig({
   base: '/yamazumi/',
-  plugins: [react()],
+  build: {
+    outDir: 'dist/yamazumi',
+  },
+  plugins: [react(), pagesRedirects()],
   optimizeDeps: {
     include: ['mediabunny'],
   },

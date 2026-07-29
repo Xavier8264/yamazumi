@@ -1,0 +1,10 @@
+name = "yamazumi-proxy"
+main = "index.js"
+compatibility_date = "2026-07-28"
+
+# More specific routes win, so this takes /yamazumi* even if another Worker
+# already holds jordanprunty.com/*. Add a second block for www if that
+# hostname is also served.
+[[routes]]
+pattern = "jordanprunty.com/yamazumi*"
+zone_name = "jordanprunty.com"
