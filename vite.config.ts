@@ -5,6 +5,9 @@ import { playwright } from '@vitest/browser-playwright';
 export default defineConfig({
   base: '/yamazumi/',
   plugins: [react()],
+  optimizeDeps: {
+    include: ['mediabunny'],
+  },
   resolve: {
     alias: {
       // jsPDF's optional DOM-rasterization deps; see src/shims/empty.ts.

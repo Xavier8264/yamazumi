@@ -10,6 +10,8 @@ import {
   summaryText,
 } from '../render/interpolate';
 import type { Animation, EasingName } from '../render/interpolate';
+import { checkEncodeSupport, encodeMp4 } from '../video/encode';
+import type { EncodeSupport } from '../video/encode';
 import '../animate.css';
 
 // SPEC 13: the transition animator. Lazy-loaded so nothing here (including
@@ -252,16 +254,73 @@ export default function Animate() {
   );
 }
 
-// Placeholder until the encoder lands; replaced by the wired exporter.
-function ExportMp4Button(_props: {
+function ExportMp4Button({
+  anim,
+  durationMs,
+  fps,
+  easing,
+}: {
   anim: Animation;
   durationMs: number;
   fps: number;
   easing: EasingName;
 }) {
+  const [support, setSupport] = useState<EncodeSupport | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const { width, height } = anim.resolution;
+  useEffect(() => {
+    let alive = true;
+    void checkEncodeSupport(width, height, fps).then((s) => {
+      if (alive) setSupport(s);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [width, height, fps]);
+
+  const run = async () => {
+    setError(null);
+    setProgress(0);
+    try {
+      // Offline render: one frame at a time into the encoder (SPEC 13.3).
+      const buffer = await encodeMp4({
+        width,
+        height,
+        fps,
+        durationMs,
+        draw: (ctx, t) => renderAnimationFrame(ctx, anim, t, easing),
+        onProgress: (done, total) => setProgress(done / total),
+      });
+      const blob = new Blob([buffer], { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'yamazumi.mp4';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('MP4 export failed: ' + String(err));
+    } finally {
+      setProgress(null);
+    }
+  };
+
   return (
-    <button disabled title="MP4 encoding is wired in the next step">
-      Export MP4
-    </button>
+    <>
+      <button
+        disabled={!support || !support.supported || progress !== null}
+        onClick={() => void run()}
+      >
+        {progress !== null
+          ? 'Encoding ' + Math.round(progress * 100) + '%'
+          : 'Export MP4'}
+      </button>
+      {support && !support.supported && (
+        <span className="export-unsupported">{support.reason}</span>
+      )}
+      {error && <span className="export-unsupported">{error}</span>}
+    </>
   );
 }
