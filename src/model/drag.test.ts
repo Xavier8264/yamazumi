@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dropIndexFor, moveBlockTo, reorderWithinBay } from './drag';
+import { dropTargetFor, moveBlockTo, reorderWithinBay } from './drag';
 import { PARKING } from './types';
 import type { Block } from './types';
 
@@ -136,29 +136,64 @@ describe('moveBlockTo (cross-container index math)', () => {
   });
 });
 
-// The off-by-one trap SPEC 9.3 warns about: bay columns are column-reverse,
-// so a higher array index sits HIGHER on screen and the midpoint test flips.
-describe('dropIndexFor (column-reverse inversion)', () => {
-  it('bottom-stack: dragging ABOVE the midpoint inserts after', () => {
-    // Screen y decreases upward, so activeCenter < overMid means "higher".
-    expect(dropIndexFor(2, 100, 200, 'bottom-stack')).toBe(3);
+// SPEC 9.3: the drop position must be visible before you release. That holds
+// only while the committed index equals the one the ghost was drawn from --
+// dnd-kit's overIndex, the hovered block's slot in its own bay.
+describe('dropTargetFor (the ghost and the drop agree)', () => {
+  const blocks = [
+    block('A', 'Bay 1'),
+    block('B', 'Bay 1'),
+    block('C', 'Bay 1'),
+    block('X', 'Bay 2'),
+    block('Y', 'Bay 2'),
+  ];
+
+  it('takes the hovered block slot when reordering inside a bay', () => {
+    expect(dropTargetFor(blocks, 'A', 'C', null)).toEqual({ bay: 'Bay 1', index: 2 });
   });
 
-  it('bottom-stack: dragging BELOW the midpoint inserts before', () => {
-    expect(dropIndexFor(2, 300, 200, 'bottom-stack')).toBe(2);
+  it('reads the same slot no matter which way the drag travels', () => {
+    // The midpoint test this replaced answered differently depending on where
+    // the dragged rect sat; the hovered block's index does not care.
+    expect(dropTargetFor(blocks, 'C', 'A', null)).toEqual({ bay: 'Bay 1', index: 0 });
   });
 
-  it('horizontal: dragging PAST the midpoint inserts after', () => {
-    expect(dropIndexFor(1, 300, 200, 'horizontal')).toBe(2);
+  it('takes the hovered block slot when crossing bays', () => {
+    expect(dropTargetFor(blocks, 'A', 'X', null)).toEqual({ bay: 'Bay 2', index: 0 });
+    expect(dropTargetFor(blocks, 'A', 'Y', null)).toEqual({ bay: 'Bay 2', index: 1 });
   });
 
-  it('horizontal: dragging BEFORE the midpoint inserts before', () => {
-    expect(dropIndexFor(1, 100, 200, 'horizontal')).toBe(1);
+  it('a cross-bay drop lands on the hovered slot, not on top', () => {
+    const target = dropTargetFor(blocks, 'A', 'X', null);
+    expect(target).not.toBeNull();
+    expect(inBay(moveBlockTo(blocks, 'A', target!.bay, target!.index), 'Bay 2')).toEqual([
+      'A',
+      'X',
+      'Y',
+    ]);
   });
 
-  it('the two orientations disagree on identical geometry', () => {
-    expect(dropIndexFor(1, 100, 200, 'bottom-stack')).not.toBe(
-      dropIndexFor(1, 100, 200, 'horizontal'),
-    );
+  it('hovering the dragged block itself is a no-op, not an append', () => {
+    const target = dropTargetFor(blocks, 'B', 'B', null);
+    expect(target).toEqual({ bay: 'Bay 1', index: 1 });
+    expect(moveBlockTo(blocks, 'B', target!.bay, target!.index)).toBe(blocks);
+  });
+
+  it('hovering a bay column itself lands on top of that bay', () => {
+    expect(dropTargetFor(blocks, 'A', 'bay:Bay 2', 'Bay 2')).toEqual({
+      bay: 'Bay 2',
+      index: 2,
+    });
+  });
+
+  it('a column hover discounts the dragged block already in that bay', () => {
+    expect(dropTargetFor(blocks, 'A', 'bay:Bay 1', 'Bay 1')).toEqual({
+      bay: 'Bay 1',
+      index: 2,
+    });
+  });
+
+  it('returns null for an unknown over id', () => {
+    expect(dropTargetFor(blocks, 'A', 'nope', null)).toBeNull();
   });
 });

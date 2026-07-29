@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -10,6 +10,7 @@ import {
 } from '@dnd-kit/core';
 import type {
   ClientRect,
+  Collision,
   CollisionDetection,
   DragEndEvent,
   DragOverEvent,
@@ -21,7 +22,7 @@ import type { ChartState } from '../model/types';
 import { newChartState } from '../model/defaults';
 import { computeAxisMax } from '../model/axis';
 import { parseCsv, serializeCsv } from '../model/csv';
-import { dropIndexFor, moveBlockTo } from '../model/drag';
+import { dropTargetFor, moveBlockTo } from '../model/drag';
 import { layout } from '../model/layout';
 import {
   addBay,
@@ -352,12 +353,30 @@ function downloadCsv(chart: ChartState): void {
 
 // A block collides with the container it sits in as well as its siblings.
 // Prefer the sibling: it carries a position, a container only means "append".
-const collisionDetection: CollisionDetection = (args) => {
+//
+// `held` carries the last hit forward for the case where the pointer is over
+// nothing at all -- the gap between two columns, the band under the stacks.
+// dnd-kit's distance fallbacks cannot answer that question stably here: the
+// sorting strategy transforms the very rects they measure, so whichever
+// neighbor they pick moves the blocks that decide the next pick, and the ghost
+// flips between two slots for as long as you hover. Freezing it on the last
+// thing you actually pointed at is both stable and what the eye expects, and
+// the drop then commits exactly that.
+function collisionsFor(
+  args: Parameters<CollisionDetection>[0],
+  held: { current: Collision[] },
+): Collision[] {
   const pointer = pointerWithin(args);
-  const list = pointer.length > 0 ? pointer : closestCorners(args);
-  const onBlock = list.find((c) => bayFromContainerId(String(c.id)) === null);
-  return onBlock ? [onBlock] : list;
-};
+  if (pointer.length === 0) {
+    const stillMounted = held.current.filter((c) =>
+      args.droppableContainers.some((d) => d.id === c.id),
+    );
+    return stillMounted.length > 0 ? stillMounted : closestCorners(args);
+  }
+  const onBlock = pointer.find((c) => bayFromContainerId(String(c.id)) === null);
+  held.current = onBlock ? [onBlock] : pointer;
+  return held.current;
+}
 
 // Current pointer position, reconstructed from where the drag started plus how
 // far it has travelled. DragOverEvent does not carry it directly.
@@ -369,12 +388,12 @@ function pointerAt(e: DragOverEvent | DragEndEvent): { x: number; y: number } | 
 
 // True when the pointer is genuinely inside the thing we are hovering.
 //
-// This is the discriminator between the two collision detectors above: if
-// pointerWithin found the target the pointer is inside it, and if the
-// closestCorners fallback did, it is not. Acting on the fallback is what makes
-// a drag over a gap -- the tray header, the band under the columns -- flip
-// between the two nearest containers forever, because each move rewrites the
-// geometry that picks the next one.
+// This is the discriminator between the branches of collisionsFor: a target
+// pointerWithin returned has the pointer inside it, and one that came from the
+// held hit or from closestCorners does not. Changing bays off a target the
+// pointer is not on is what makes a drag over a gap -- the tray header, the
+// band under the columns -- flip between the two nearest columns forever,
+// because each move rewrites the geometry that picks the next one.
 function pointerIsInside(rect: ClientRect, p: { x: number; y: number }): boolean {
   return (
     p.x >= rect.left &&
@@ -384,43 +403,17 @@ function pointerIsInside(rect: ClientRect, p: { x: number; y: number }): boolean
   );
 }
 
-// Resolves a dnd-kit hover into "which bay, which index". The index is a
-// position in the destination list with the dragged block already removed,
-// which is exactly what moveBlockTo expects.
+// Resolves a dnd-kit hover into "which bay, which index". All of the index
+// math lives in dropTargetFor, which reads the answer straight off the block
+// dnd-kit says the pointer is over -- the same block the sorting strategy is
+// drawing the ghost from.
 function resolveDrop(
   chart: ChartState,
   activeId: string,
   over: Over,
-  activeRect: ClientRect | null,
 ): { bay: string; index: number } | null {
   const overId = String(over.id);
-  const asContainer = bayFromContainerId(overId);
-  const bay = asContainer ?? chart.blocks.find((b) => b.id === overId)?.bay;
-  if (bay === undefined) return null;
-
-  const items = chart.blocks.filter((b) => b.bay === bay && b.id !== activeId);
-  if (asContainer !== null) return { bay, index: items.length };
-
-  const overIndex = items.findIndex((b) => b.id === overId);
-  if (overIndex < 0) return { bay, index: items.length };
-  if (!activeRect) return { bay, index: overIndex };
-
-  const horizontal = bay === PARKING;
-  const activeCenter = horizontal
-    ? activeRect.left + activeRect.width / 2
-    : activeRect.top + activeRect.height / 2;
-  const overMid = horizontal
-    ? over.rect.left + over.rect.width / 2
-    : over.rect.top + over.rect.height / 2;
-  return {
-    bay,
-    index: dropIndexFor(
-      overIndex,
-      activeCenter,
-      overMid,
-      horizontal ? 'horizontal' : 'bottom-stack',
-    ),
-  };
+  return dropTargetFor(chart.blocks, activeId, overId, bayFromContainerId(overId));
 }
 
 export default function Editor() {
@@ -472,21 +465,28 @@ export default function Editor() {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
 
+  const heldCollisions = useRef<Collision[]>([]);
+  const collisionDetection = useCallback<CollisionDetection>(
+    (args) => collisionsFor(args, heldCollisions),
+    [],
+  );
+
   const handleDragStart = (e: DragStartEvent) => {
+    heldCollisions.current = [];
     dispatch({ type: 'drag-start', id: String(e.active.id) });
   };
 
-  const dropFor = (e: DragOverEvent | DragEndEvent) => {
-    if (!e.over) return null;
+  const dropFor = (e: DragOverEvent | DragEndEvent) =>
+    e.over ? resolveDrop(state.chart, String(e.active.id), e.over) : null;
+
+  // False when dnd-kit only reached this target through the closestCorners
+  // fallback, i.e. the pointer is in a gap beside it. See pointerIsInside.
+  const pointerOnTarget = (e: DragOverEvent | DragEndEvent) => {
     const p = pointerAt(e);
-    if (p && !pointerIsInside(e.over.rect, p)) return null;
-    return resolveDrop(
-      state.chart,
-      String(e.active.id),
-      e.over,
-      e.active.rect.current.translated,
-    );
+    return !e.over || !p || pointerIsInside(e.over.rect, p);
   };
+
+  const bayOf = (id: string) => state.chart.blocks.find((b) => b.id === id)?.bay;
 
   // Hovering only ever moves a block ACROSS containers. Reordering inside one
   // column is left to bottomStackSortingStrategy, which previews it with
@@ -500,22 +500,23 @@ export default function Editor() {
     const drop = dropFor(e);
     if (!drop) return;
     const id = String(e.active.id);
-    const from = state.chart.blocks.find((b) => b.id === id)?.bay;
-    if (drop.bay === from) return;
+    if (drop.bay === bayOf(id)) return;
+    if (!pointerOnTarget(e)) return;
     dispatch({ type: 'drag-move', id, bay: drop.bay, index: drop.index });
   };
 
-  // Dropping over a gap keeps whatever the live preview was showing, which is
-  // the honest answer: what you saw during the drag is what you get.
+  // What you saw during the drag is what you get. The commit index is the one
+  // the ghost was drawn from, so a drop can only ever land where the ghost was.
+  //
+  // The pointer guard applies to a bay CHANGE only. A reorder inside the bay
+  // the block is already in has to commit whether or not the pointer sits in a
+  // gap, because the ghost previewed it either way; skipping it there is what
+  // made a block snap back to where it started after showing you otherwise.
   const handleDragEnd = (e: DragEndEvent) => {
+    const id = String(e.active.id);
     const drop = dropFor(e);
-    if (drop) {
-      dispatch({
-        type: 'drag-move',
-        id: String(e.active.id),
-        bay: drop.bay,
-        index: drop.index,
-      });
+    if (drop && (drop.bay === bayOf(id) || pointerOnTarget(e))) {
+      dispatch({ type: 'drag-move', id, bay: drop.bay, index: drop.index });
     }
     dispatch({ type: 'drag-end' });
   };

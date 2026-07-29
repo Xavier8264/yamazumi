@@ -67,19 +67,40 @@ export function moveBlockTo(
   return next;
 }
 
-// A bay column renders column-reverse, so a HIGHER array index sits HIGHER on
-// screen and the sign of every midpoint test flips. The parking tray is a
-// plain horizontal list and does not flip. This is the off-by-one trap called
-// out in SPEC 9.3; keeping it in one pure function is what makes it testable.
-export type StackOrientation = 'bottom-stack' | 'horizontal';
+// Where a hover lands the dragged block: the bay it joins and the slot it will
+// occupy there, ready to hand to moveBlockTo.
+//
+// The slot is always the index the HOVERED block occupies in its own bay. That
+// is the same number the sorting strategy uses to draw the ghost (dnd-kit's
+// overIndex), so the drop and the preview cannot disagree. This is the whole
+// point of the function: the ghost is a promise, and SPEC 9.3 requires the drop
+// position to be visible before release. Any second opinion here -- a midpoint
+// test against the dragged rect, say -- makes the block jump on release,
+// because the two opinions are computed from different geometry.
+//
+// It also means the column-reverse inversion never needs a sign flip. dnd-kit
+// reports the block under the pointer; asking for its index is orientation
+// free, which is what defuses the off-by-one trap SPEC 9.3 warns about.
+//
+// `overBay` is the bay when the pointer is over a bay column ITSELF rather than
+// a block in it -- the empty space above a stack -- where the only sensible
+// answer is "on top". Otherwise pass null.
+//
+// Hovering the dragged block itself returns its own slot, which moveBlockTo
+// treats as a no-op: the block stays where the preview already put it.
+export function dropTargetFor(
+  blocks: readonly Block[],
+  activeId: string,
+  overId: string,
+  overBay: string | null,
+): { bay: string; index: number } | null {
+  if (overBay !== null) {
+    const items = blocks.filter((b) => b.bay === overBay && b.id !== activeId);
+    return { bay: overBay, index: items.length };
+  }
 
-export function dropIndexFor(
-  overIndex: number,
-  activeCenter: number,
-  overMid: number,
-  orientation: StackOrientation,
-): number {
-  const past =
-    orientation === 'bottom-stack' ? activeCenter < overMid : activeCenter > overMid;
-  return past ? overIndex + 1 : overIndex;
+  const over = blocks.find((b) => b.id === overId);
+  if (!over) return null;
+  const items = blocksInBay(blocks, over.bay);
+  return { bay: over.bay, index: items.findIndex((b) => b.id === overId) };
 }
