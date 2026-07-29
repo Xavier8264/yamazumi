@@ -111,11 +111,16 @@ button:hover {
 .tick-label,
 .takt-line,
 .takt-label,
-.block,
+.bay-column,
 .bay-name,
 .bay-total,
 .overflow-chevron {
   position: absolute;
+}
+
+.bay-column {
+  display: flex;
+  flex-direction: column-reverse;
 }
 
 .gridline {
@@ -148,12 +153,24 @@ button:hover {
 }
 
 .block {
+  position: relative;
+  width: 100%;
+  flex: none;
   border: 1px solid rgba(0, 0, 0, 0.25);
   border-radius: 2px;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.block.dragging {
+  opacity: 0.85;
+  z-index: 10;
+  cursor: grabbing;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .block-label {
@@ -163,6 +180,10 @@ button:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.bay-total {
+  pointer-events: none;
 }
 
 .bay-name {

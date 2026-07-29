@@ -3,6 +3,7 @@ import type { ChartState } from '../model/types';
 import { newChartState } from '../model/defaults';
 import { computeAxisMax } from '../model/axis';
 import { parseCsv, serializeCsv } from '../model/csv';
+import { reorderWithinBay } from '../model/drag';
 import { clearDraft, loadDraft, saveDraft } from '../state/draft';
 import TopBar from '../components/TopBar';
 import Chart from '../components/Chart';
@@ -20,6 +21,7 @@ interface EditorState {
 type Action =
   | { type: 'new-chart' }
   | { type: 'load-file'; state: ChartState; warnings: string[] }
+  | { type: 'reorder-within-bay'; bay: string; from: number; to: number }
   | { type: 'set-takt'; value: number | null }
   | { type: 'set-axis-max'; value: number }
   | { type: 'fit' }
@@ -52,6 +54,16 @@ function reducer(state: EditorState, action: Action): EditorState {
             ? { kind: 'warning', messages: action.warnings }
             : null,
       };
+    case 'reorder-within-bay': {
+      const blocks = reorderWithinBay(
+        state.chart.blocks,
+        action.bay,
+        action.from,
+        action.to,
+      );
+      if (blocks === state.chart.blocks) return state;
+      return { ...state, chart: { ...state.chart, blocks }, dirty: true };
+    }
     case 'set-takt': {
       if (action.value === state.chart.taktMinutes) return state;
       const chart = { ...state.chart, taktMinutes: action.value };
@@ -182,7 +194,13 @@ export default function Editor() {
           onDismiss={() => dispatch({ type: 'dismiss-notice' })}
         />
       )}
-      <Chart chart={state.chart} onFit={() => dispatch({ type: 'fit' })} />
+      <Chart
+        chart={state.chart}
+        onFit={() => dispatch({ type: 'fit' })}
+        onReorderWithinBay={(bay, from, to) =>
+          dispatch({ type: 'reorder-within-bay', bay, from, to })
+        }
+      />
       <ParkingLot chart={state.chart} />
     </div>
   );
