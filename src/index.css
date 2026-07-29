@@ -46,6 +46,43 @@ button:hover {
   background: #fafbfc;
 }
 
+.export-menu {
+  position: relative;
+}
+
+.export-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  min-width: 180px;
+  background: #ffffff;
+  border: 1px solid #c8ccd2;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.export-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.export-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-top: 1px solid #eceff1;
+  margin-top: 4px;
+  color: #57606a;
+}
+
 .topbar-sep {
   width: 1px;
   align-self: stretch;

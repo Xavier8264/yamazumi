@@ -1,10 +1,11 @@
-import { useEffect, useReducer } from 'react';
+import { useEffect, useReducer, useRef } from 'react';
 import type { ChartState } from '../model/types';
 import { newChartState } from '../model/defaults';
 import { computeAxisMax } from '../model/axis';
 import { parseCsv, serializeCsv } from '../model/csv';
 import { reorderWithinBay } from '../model/drag';
 import { clearDraft, loadDraft, saveDraft } from '../state/draft';
+import { exportPdf, exportPng } from '../render/exportImage';
 import TopBar from '../components/TopBar';
 import Chart from '../components/Chart';
 import ParkingLot from '../components/ParkingLot';
@@ -123,6 +124,7 @@ function downloadCsv(chart: ChartState): void {
 
 export default function Editor() {
   const [state, dispatch] = useReducer(reducer, undefined, init);
+  const chartSizeRef = useRef({ width: 1200, height: 700 });
 
   // Crash protection: autosave the draft, debounced 500ms, while dirty.
   useEffect(() => {
@@ -161,10 +163,17 @@ export default function Editor() {
     }
   };
 
-  const handleExport = () => {
+  const handleExportCsv = () => {
     downloadCsv(state.chart);
-    // Marks the state clean but leaves the draft in place (SPEC 11).
+    // Marks the state clean but leaves the draft in place (SPEC 11). Image
+    // exports do not touch the dirty flag; only the CSV is the file format.
     dispatch({ type: 'export-done' });
+  };
+
+  const handleImageExport = (run: () => Promise<void>) => {
+    run().catch((err: unknown) => {
+      dispatch({ type: 'show-error', messages: ['Export failed: ' + String(err)] });
+    });
   };
 
   return (
@@ -174,7 +183,17 @@ export default function Editor() {
         axisMaxMinutes={state.chart.axisMaxMinutes}
         onNew={handleNew}
         onOpenText={handleOpenText}
-        onExport={handleExport}
+        onExportCsv={handleExportCsv}
+        onExportPng={(includeParking) =>
+          handleImageExport(() =>
+            exportPng(state.chart, chartSizeRef.current, includeParking),
+          )
+        }
+        onExportPdf={(includeParking) =>
+          handleImageExport(() =>
+            exportPdf(state.chart, chartSizeRef.current, includeParking),
+          )
+        }
         onTaktChange={(value) => dispatch({ type: 'set-takt', value })}
         onAxisMaxChange={(value) => dispatch({ type: 'set-axis-max', value })}
         onFit={() => dispatch({ type: 'fit' })}
@@ -200,6 +219,9 @@ export default function Editor() {
         onReorderWithinBay={(bay, from, to) =>
           dispatch({ type: 'reorder-within-bay', bay, from, to })
         }
+        onSizeChange={(size) => {
+          chartSizeRef.current = size;
+        }}
       />
       <ParkingLot chart={state.chart} />
     </div>

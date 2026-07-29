@@ -19,6 +19,7 @@ interface ChartProps {
   chart: ChartState;
   onFit: () => void;
   onReorderWithinBay: (bay: string, from: number, to: number) => void;
+  onSizeChange?: (size: { width: number; height: number }) => void;
 }
 
 function SortableBlock({ rect }: { rect: LayoutRect }) {
@@ -48,14 +49,25 @@ function SortableBlock({ rect }: { rect: LayoutRect }) {
 // Blocks live in per-bay flex containers with flex-direction: column-reverse
 // so DOM order matches array order and index 0 sits at the baseline
 // (SPEC 9.3).
-export default function Chart({ chart, onFit, onReorderWithinBay }: ChartProps) {
+export default function Chart({
+  chart,
+  onFit,
+  onReorderWithinBay,
+  onSizeChange,
+}: ChartProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const sizeCallbackRef = useRef(onSizeChange);
+  sizeCallbackRef.current = onSizeChange;
 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const update = () => setSize({ width: el.clientWidth, height: el.clientHeight });
+    const update = () => {
+      const next = { width: el.clientWidth, height: el.clientHeight };
+      setSize(next);
+      if (next.width > 0 && next.height > 0) sizeCallbackRef.current?.(next);
+    };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);

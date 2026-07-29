@@ -5,6 +5,14 @@ import { playwright } from '@vitest/browser-playwright';
 export default defineConfig({
   base: '/yamazumi/',
   plugins: [react()],
+  resolve: {
+    alias: {
+      // jsPDF's optional DOM-rasterization deps; see src/shims/empty.ts.
+      html2canvas: '/src/shims/empty.ts',
+      canvg: '/src/shims/empty.ts',
+      dompurify: '/src/shims/empty.ts',
+    },
+  },
   test: {
     projects: [
       {

@@ -50,10 +50,75 @@ interface TopBarProps {
   axisMaxMinutes: number;
   onNew: () => void;
   onOpenText: (text: string) => void;
-  onExport: () => void;
+  onExportCsv: () => void;
+  onExportPng: (includeParking: boolean) => void;
+  onExportPdf: (includeParking: boolean) => void;
   onTaktChange: (value: number | null) => void;
   onAxisMaxChange: (value: number) => void;
   onFit: () => void;
+}
+
+function ExportMenu(props: {
+  onExportCsv: () => void;
+  onExportPng: (includeParking: boolean) => void;
+  onExportPdf: (includeParking: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [includeParking, setIncludeParking] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const item = (label: string, action: () => void) => (
+    <button
+      className="export-item"
+      onClick={() => {
+        setOpen(false);
+        action();
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="export-menu" ref={wrapRef}>
+      <button onClick={() => setOpen(!open)} aria-expanded={open}>
+        Export v
+      </button>
+      {open && (
+        <div className="export-dropdown">
+          {item('Export CSV', props.onExportCsv)}
+          {item('Export PNG', () => props.onExportPng(includeParking))}
+          {item('Export PDF', () => props.onExportPdf(includeParking))}
+          <label className="export-check">
+            <input
+              type="checkbox"
+              checked={includeParking}
+              onChange={(e) => setIncludeParking(e.target.checked)}
+            />
+            Include parking lot
+          </label>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function TopBar(props: TopBarProps) {
@@ -63,7 +128,11 @@ export default function TopBar(props: TopBarProps) {
     <div className="topbar">
       <button onClick={props.onNew}>New</button>
       <button onClick={() => fileRef.current?.click()}>Open</button>
-      <button onClick={props.onExport}>Export CSV</button>
+      <ExportMenu
+        onExportCsv={props.onExportCsv}
+        onExportPng={props.onExportPng}
+        onExportPdf={props.onExportPdf}
+      />
       <input
         ref={fileRef}
         type="file"
