@@ -1,0 +1,111 @@
+.animate {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 16px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.animate-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.animate-top h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.dropzones {
+  display: flex;
+  gap: 12px;
+}
+
+.dropzone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 22px 12px;
+  border: 2px dashed #c8ccd2;
+  border-radius: 8px;
+  background: #fafbfc;
+  color: #57606a;
+  cursor: pointer;
+  text-align: center;
+}
+
+.dropzone.over {
+  border-color: #1f6feb;
+  background: #eef4ff;
+}
+
+.dropzone.loaded {
+  border-style: solid;
+  border-color: #2e7d32;
+  color: #1f2328;
+}
+
+.animate-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+.animate-controls input,
+.animate-controls select {
+  font: inherit;
+  padding: 3px 6px;
+  border: 1px solid #c8ccd2;
+  border-radius: 4px;
+}
+
+.animate-controls input {
+  width: 80px;
+}
+
+.match-summary {
+  font-weight: 600;
+}
+
+.preview-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.preview-canvas {
+  width: 100%;
+  height: auto;
+  border: 1px solid #d9dde2;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scrubber {
+  flex: 1;
+}
+
+.animate-hint {
+  color: #57606a;
+}
+
+.export-progress {
+  font-variant-numeric: tabular-nums;
+  color: #57606a;
+}
+
+.export-unsupported {
+  color: #b45309;
+  font-size: 13px;
+}
