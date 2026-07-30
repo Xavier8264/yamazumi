@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:lan": "vite --host",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "preview:lan": "vite preview --host",
+    "serve:lan": "npm run build && vite preview --host",
     "test": "vitest run"
   },
   "dependencies": {

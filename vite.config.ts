@@ -18,6 +18,14 @@ const REDIRECTS = '/yamazumi/* /yamazumi/index.html 200\n';
 
 const EMPTY_SHIM = fileURLToPath(new URL('./src/shims/empty.ts', import.meta.url));
 
+// Local-network serving: the `:lan` scripts in package.json pass --host, which
+// binds the server to every interface instead of localhost only, so other
+// machines on the same network can open the app. Vite rejects requests whose
+// Host header is a name it does not know about; raw LAN IPs are always allowed,
+// so this only has to cover the mDNS names Windows and macOS advertise, e.g.
+// http://desktop.local:4173/yamazumi/. A leading dot also matches subdomains.
+const LAN_ALLOWED_HOSTS = ['.local'];
+
 function pagesRedirects(): Plugin {
   let outDir = '';
   return {
@@ -38,6 +46,16 @@ export default defineConfig({
     outDir: 'dist/yamazumi',
   },
   plugins: [react(), pagesRedirects()],
+  server: {
+    allowedHosts: LAN_ALLOWED_HOSTS,
+  },
+  preview: {
+    // A LAN preview URL gets handed to other people, so it must not quietly
+    // move to another port when 4173 is busy - fail loudly instead.
+    port: 4173,
+    strictPort: true,
+    allowedHosts: LAN_ALLOWED_HOSTS,
+  },
   optimizeDeps: {
     include: ['mediabunny'],
   },
