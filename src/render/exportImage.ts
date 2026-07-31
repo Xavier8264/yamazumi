@@ -4,6 +4,10 @@ import type { ChartState } from '../model/types';
 // SPEC 12.2: PNG at 3x pixel ratio; PDF wraps the same image via jsPDF.
 // Both go through renderStill, the single still-image code path. No DOM
 // rasterization anywhere.
+//
+// Neither takes a viewport: renderStill always composes the presentation frame
+// (SPEC 12.3), so an export is a capture of presentation mode and not a picture
+// of the current window shape. 3x of a 1920x1080 frame is 5760x3240.
 
 const PNG_PIXEL_RATIO = 3;
 
@@ -18,11 +22,10 @@ function download(blob: Blob, filename: string): void {
 
 export async function exportPng(
   state: ChartState,
-  viewport: { width: number; height: number },
   includeParking: boolean,
 ): Promise<void> {
   const canvas = document.createElement('canvas');
-  renderStill(canvas, state, viewport, {
+  renderStill(canvas, state, {
     pixelRatio: PNG_PIXEL_RATIO,
     includeParking,
   });
@@ -35,11 +38,10 @@ export async function exportPng(
 
 export async function exportPdf(
   state: ChartState,
-  viewport: { width: number; height: number },
   includeParking: boolean,
 ): Promise<void> {
   const canvas = document.createElement('canvas');
-  const size = renderStill(canvas, state, viewport, {
+  const size = renderStill(canvas, state, {
     pixelRatio: PNG_PIXEL_RATIO,
     includeParking,
   });

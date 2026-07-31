@@ -32,6 +32,14 @@ export const LABEL_LINE_HEIGHT = 16;
 export const MARGIN = { left: 56, right: 64, top: 48, bottom: 28 };
 export const COLUMN_PADDING = 12;
 
+// The canonical presentation frame: 16:9, the one viewport every picture of
+// the chart is composed at. Presentation mode (SPEC 12.3) renders this exact
+// box and scales it to fit the window; PNG, PDF, and every video frame compose
+// at it too and only differ in pixel density. That is what makes a Win+Shift+S
+// capture, an exported PNG, and an MP4 frame the same image regardless of
+// window size, browser zoom, Windows display scaling, or export resolution.
+export const PRESENT_FRAME = { width: 1920, height: 1080 };
+
 const EPSILON = 1e-9;
 
 export function layout(

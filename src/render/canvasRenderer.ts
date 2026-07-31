@@ -1,4 +1,4 @@
-import { COLUMN_PADDING, layout } from '../model/layout';
+import { COLUMN_PADDING, PRESENT_FRAME, layout } from '../model/layout';
 import type { LayoutRect, LayoutResult } from '../model/layout';
 import { PARKING } from '../model/types';
 import type { ChartState } from '../model/types';
@@ -11,6 +11,11 @@ import { blockFontSize, formatMinutes, textColorFor } from '../components/format
 //
 // Colors and type here mirror index.css exactly, because SPEC 5 requires an
 // export to look like what is on screen. Change one, change the other.
+//
+// "What is on screen" means PRESENTATION mode, not the windowed editor: this
+// renderer only ever produces pictures for a slide, and presentation mode is
+// what the chart looks like when it goes on one. So the type sizes below are
+// the `.presenting` rules, and every caller composes at PRESENT_FRAME.
 
 export type Canvas2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 export type AnyCanvas = HTMLCanvasElement | OffscreenCanvas;
@@ -39,12 +44,15 @@ export interface ChartFrame {
 
 const FAMILY =
   '"Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif';
-const FONT_TICK = '600 12px ' + FAMILY;
-const FONT_BAY = '700 17px ' + FAMILY;
-const FONT_TOTAL = '800 14px ' + FAMILY;
-const FONT_TAKT = '700 12px ' + FAMILY;
-const FONT_LEGEND = '600 13px ' + FAMILY;
-const FONT_CHIP = '600 13px ' + FAMILY;
+// Each of these is one `.presenting` rule in index.css.
+const FONT_TICK = '600 15px ' + FAMILY; /* .presenting .tick-label */
+const FONT_BAY = '700 26px ' + FAMILY; /* .presenting .bay-name-static */
+const FONT_TOTAL = '800 21px ' + FAMILY; /* .presenting .bay-total */
+const FONT_TAKT = '700 14px ' + FAMILY; /* .presenting .takt-label */
+const FONT_LEGEND = '600 17px ' + FAMILY; /* .presenting .legend-item */
+const FONT_CHIP = '600 15px ' + FAMILY; /* export-only parking band */
+// .presenting .block-label multiplies the height-derived size by this.
+const BLOCK_TYPE_SCALE = 1.3;
 
 // Bay Tracker tokens. The two rgba() surfaces are pre-composited over the
 // page background so the canvas needs no alpha bookkeeping for them.
@@ -57,6 +65,11 @@ const COLOR_TEXT = '#F2F6FA'; /* --bt-text */
 const COLOR_TAKT = '#E6A417'; /* --bt-warn */
 const COLOR_CHIP = '#1B2027'; /* rgba(255,255,255,.04) over --bt-bg */
 const BLOCK_STROKE = 'rgba(0, 0, 0, 0.25)';
+
+// The page surface behind every picture of the chart. Exported so the video
+// path paints the same background as a still (it is the app's own background:
+// a frame on a white page would read as a different product).
+export const PAGE_BACKGROUND = COLOR_BG;
 
 // Legend entries for categories currently in use, in state.categories order.
 export function usedLegendEntries(state: ChartState): LegendEntry[] {
@@ -102,6 +115,17 @@ export function frameFromState(
   };
 }
 
+// The alphabetic baseline for text the DOM positions by the top of its line
+// box (a `top:` on an absolutely positioned label). Canvas's own 'top'
+// baseline is the font's ascent line, which sits a few px above where the DOM
+// puts the same glyphs; at 26px that is a visible shift between a screen
+// capture and an export. These elements all use line-height: normal, so the
+// DOM's baseline is exactly the line box top plus the font ascent.
+function baselineForDomTop(ctx: Canvas2D, top: number, fontSize: number): number {
+  const ascent = ctx.measureText('M').fontBoundingBoxAscent;
+  return top + (Number.isFinite(ascent) ? ascent : fontSize * 0.92);
+}
+
 // Canvas has no text-overflow, so long process names are truncated the way
 // the DOM ellipsizes them.
 function fitText(ctx: Canvas2D, text: string, maxWidth: number): string {
@@ -131,7 +155,9 @@ export function drawFrame(
   // Axis ticks: gridlines and labels in plain minutes.
   ctx.font = FONT_TICK;
   ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
+  ctx.textBaseline = 'alphabetic';
+  // .tick-label sits at `top: t.y - 8` (SPEC 5: Chart.tsx).
+  const tickBaseline = baselineForDomTop(ctx, -8, 15);
   for (const t of frame.axisTicks) {
     ctx.strokeStyle = t.minutes === 0 ? COLOR_BORDER : COLOR_GRID;
     ctx.lineWidth = 1;
@@ -140,7 +166,7 @@ export function drawFrame(
     ctx.lineTo(plot.x + plot.w, t.y);
     ctx.stroke();
     ctx.fillStyle = COLOR_MUTED;
-    ctx.fillText(t.label, plot.x - 10, t.y);
+    ctx.fillText(t.label, plot.x - 10, t.y + tickBaseline);
   }
 
   // The faint column field, with the 2px rule the DOM draws at its foot.
@@ -174,7 +200,7 @@ export function drawFrame(
       ctx.beginPath();
       ctx.rect(b.x, b.y, b.w, b.h);
       ctx.clip();
-      ctx.font = '700 ' + blockFontSize(b.h) + 'px ' + FAMILY;
+      ctx.font = '700 ' + blockFontSize(b.h) * BLOCK_TYPE_SCALE + 'px ' + FAMILY;
       ctx.fillStyle = textColorFor(b.fill);
       ctx.textBaseline = 'middle';
       // Name left, minutes right: the same row the DOM renders.
@@ -207,12 +233,17 @@ export function drawFrame(
     ctx.clip();
     ctx.font = FONT_BAY;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
+    ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = COLOR_TEXT;
-    ctx.fillText(h.bay, h.x + h.w / 2, 8);
+    // .bay-header sits at `top: 8`, .bay-total at `top: totalY` (Chart.tsx).
+    ctx.fillText(h.bay, h.x + h.w / 2, baselineForDomTop(ctx, 8, 26));
     const totalY = Math.min(Math.max(h.topY - 22, plot.y - 18), plotBottom - 22);
     ctx.font = FONT_TOTAL;
-    ctx.fillText(formatMinutes(h.totalMinutes), h.x + h.w / 2, totalY + 2);
+    ctx.fillText(
+      formatMinutes(h.totalMinutes),
+      h.x + h.w / 2,
+      baselineForDomTop(ctx, totalY, 21),
+    );
     ctx.restore();
   }
 
@@ -268,9 +299,21 @@ interface LegendItemPos {
   entry: LegendEntry;
 }
 
-const LEGEND_ROW_H = 22;
-const LEGEND_SWATCH = 13;
-const LEGEND_PAD = 12;
+// The .legend strip: one flex row of items, wrapping, centered marks. These
+// mirror `.legend` / `.legend-item` at the presentation type scale, because the
+// band's height decides how much of PRESENT_FRAME is left for the chart -- get
+// it wrong and the export's plot is a different height than the screen's.
+const LEGEND_ROW_H = 22; /* .legend-item line box at 17px */
+const LEGEND_ROW_GAP = 16; /* .legend gap (--bt-space-6) between wrapped rows */
+const LEGEND_PAD_Y = 12; /* .presenting .legend block padding (--bt-space-5) */
+const LEGEND_ITEM_GAP = 16; /* .legend gap (--bt-space-6) between items */
+const LEGEND_MARK_GAP = 7; /* .legend-item gap */
+const LEGEND_SWATCH = 13; /* .legend-swatch */
+const LEGEND_RULE = 22; /* .legend-takt */
+
+// Horizontal inset of the legend and parking bands: the .presenting .legend
+// inline padding (--bt-space-9).
+export const BAND_INSET = 28;
 
 function layoutLegend(
   ctx: Canvas2D,
@@ -283,16 +326,20 @@ function layoutLegend(
   let x = 0;
   let row = 0;
   for (const entry of entries) {
-    const mark = entry.dashed === true ? 22 : LEGEND_SWATCH;
-    const w = mark + 7 + ctx.measureText(entry.name).width + 16;
+    const mark = entry.dashed === true ? LEGEND_RULE : LEGEND_SWATCH;
+    const w = mark + LEGEND_MARK_GAP + ctx.measureText(entry.name).width + LEGEND_ITEM_GAP;
     if (x > 0 && x + w > maxWidth) {
       x = 0;
       row++;
     }
-    items.push({ x, y: row * LEGEND_ROW_H, entry });
+    items.push({ x, y: row * (LEGEND_ROW_H + LEGEND_ROW_GAP), entry });
     x += w;
   }
-  return { items, height: (row + 1) * LEGEND_ROW_H + LEGEND_PAD };
+  const rows = row + 1;
+  return {
+    items,
+    height: rows * LEGEND_ROW_H + (rows - 1) * LEGEND_ROW_GAP + LEGEND_PAD_Y * 2,
+  };
 }
 
 export function drawLegend(
@@ -307,10 +354,10 @@ export function drawLegend(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   for (const item of items) {
-    const cy = y + item.y + LEGEND_ROW_H / 2;
+    const cy = y + LEGEND_PAD_Y + item.y + LEGEND_ROW_H / 2;
     let mark: number;
     if (item.entry.dashed === true) {
-      mark = 22;
+      mark = LEGEND_RULE;
       ctx.strokeStyle = item.entry.color;
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 3]);
@@ -325,7 +372,7 @@ export function drawLegend(
       ctx.fillRect(x + item.x, cy - mark / 2, mark, mark);
     }
     ctx.fillStyle = COLOR_MUTED;
-    ctx.fillText(item.entry.name, x + item.x + mark + 7, cy);
+    ctx.fillText(item.entry.name, x + item.x + mark + LEGEND_MARK_GAP, cy);
   }
   return height;
 }
@@ -347,9 +394,10 @@ interface ChipPos {
   label: string;
 }
 
-const CHIP_H = 32;
+const CHIP_H = 34;
 const CHIP_GAP = 8;
-const PARKING_HEADER_H = 24;
+const PARKING_HEADER_H = 28;
+const FONT_PARKING_HEADER = '700 14px ' + FAMILY;
 
 function layoutParking(
   ctx: Canvas2D,
@@ -392,7 +440,7 @@ export function drawParking(
 ): number {
   const { header, chips, height } = layoutParking(ctx, state, maxWidth);
   if (chips.length === 0) return 0;
-  ctx.font = '700 12px ' + FAMILY;
+  ctx.font = FONT_PARKING_HEADER;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = COLOR_MUTED;
@@ -428,6 +476,7 @@ export function measureParkingHeight(
 export interface StillOptions {
   pixelRatio: number;
   includeParking: boolean;
+  frame?: { width: number; height: number }; // defaults to PRESENT_FRAME
 }
 
 export interface StillSize {
@@ -435,36 +484,64 @@ export interface StillSize {
   height: number; // logical px
 }
 
-// Sizes the canvas to viewport height plus legend and optional parking
-// bands, scales by pixelRatio, and draws everything. Returns logical size.
+// Splits a frame into the chart viewport and the legend band below it, the way
+// the .editor flex column splits presentation mode: the legend is `flex: none`
+// and takes what it needs, the chart takes the rest. Shared with the video
+// path so a still and a frame of the clip divide the picture identically.
+export function splitFrame(
+  ctx: Canvas2D,
+  state: ChartState,
+  frame: { width: number; height: number },
+): { chartViewport: { width: number; height: number }; legendHeight: number } {
+  const legendHeight = measureLegendHeight(
+    ctx,
+    legendEntriesFor(state),
+    frame.width - BAND_INSET * 2,
+  );
+  return {
+    chartViewport: { width: frame.width, height: frame.height - legendHeight },
+    legendHeight,
+  };
+}
+
+// Draws the presentation frame at `pixelRatio` output pixels per logical px.
+// The picture is exactly the frame -- chart plus legend band, 16:9 -- so a PNG
+// is a capture of presentation mode rather than a copy of whatever shape the
+// editor window happened to be. Returns logical size.
+//
+// The parking band is the one thing appended BELOW the frame: presentation mode
+// unmounts the tray, so it can never appear in a capture, and SPEC 12.2 has it
+// off unless the user asks. Ticking the box grows the image rather than
+// stealing height from the chart.
 export function renderStill(
   canvas: AnyCanvas,
   state: ChartState,
-  viewport: { width: number; height: number },
   opts: StillOptions,
 ): StillSize {
   const ctx = canvas.getContext('2d') as Canvas2D | null;
   if (!ctx) throw new Error('Canvas 2D context unavailable');
 
-  const bandWidth = viewport.width - 24;
-  const frame = frameFromState(state, viewport);
-  const legendHeight = measureLegendHeight(ctx, frame.legend, bandWidth);
+  const frame = opts.frame ?? PRESENT_FRAME;
+  const bandWidth = frame.width - BAND_INSET * 2;
+  const { chartViewport, legendHeight } = splitFrame(ctx, state, frame);
+  const chart = frameFromState(state, chartViewport);
   const parkingHeight = opts.includeParking
     ? measureParkingHeight(ctx, state, bandWidth)
     : 0;
-  const height = viewport.height + legendHeight + parkingHeight;
+  const height = frame.height + parkingHeight;
 
-  canvas.width = Math.round(viewport.width * opts.pixelRatio);
+  canvas.width = Math.round(frame.width * opts.pixelRatio);
   canvas.height = Math.round(height * opts.pixelRatio);
   ctx.setTransform(opts.pixelRatio, 0, 0, opts.pixelRatio, 0, 0);
 
-  ctx.fillStyle = COLOR_BG;
-  ctx.fillRect(0, 0, viewport.width, height);
-  drawFrame(ctx, frame, null);
-  let y = viewport.height;
-  y += drawLegend(ctx, frame.legend, 12, y, bandWidth);
-  if (opts.includeParking) {
-    drawParking(ctx, state, 12, y, bandWidth);
+  ctx.fillStyle = PAGE_BACKGROUND;
+  ctx.fillRect(0, 0, frame.width, height);
+  drawFrame(ctx, chart, null);
+  if (legendHeight > 0) {
+    drawLegend(ctx, chart.legend, BAND_INSET, chartViewport.height, bandWidth);
   }
-  return { width: viewport.width, height };
+  if (opts.includeParking) {
+    drawParking(ctx, state, BAND_INSET, frame.height, bandWidth);
+  }
+  return { width: frame.width, height };
 }

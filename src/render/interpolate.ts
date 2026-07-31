@@ -1,12 +1,14 @@
-import { LABEL_LINE_HEIGHT, layout } from '../model/layout';
+import { LABEL_LINE_HEIGHT, PRESENT_FRAME, layout } from '../model/layout';
 import type { LayoutRect, LayoutResult } from '../model/layout';
 import type { ChartState } from '../model/types';
 import type { Canvas2D, ChartFrame, FrameRect, LegendEntry } from './canvasRenderer';
 import {
+  BAND_INSET,
+  PAGE_BACKGROUND,
   drawFrame,
   drawLegend,
-  measureLegendHeight,
   legendEntriesFor,
+  splitFrame,
 } from './canvasRenderer';
 import { formatMinutes } from '../components/format';
 
@@ -256,46 +258,60 @@ export function frameAt(
 // --- Full video frame (chart + legend band) ------------------------------
 
 export interface Animation {
-  resolution: { width: number; height: number };
+  resolution: { width: number; height: number }; // output pixels
+  frame: { width: number; height: number }; // logical composition (16:9)
   chartViewport: { width: number; height: number };
   legend: LegendEntry[];
   legendHeight: number;
   setup: AnimationSetup;
 }
 
+// The clip is composed at PRESENT_FRAME and split into chart plus legend band
+// exactly as a still is, so a frame of the MP4 is the PNG. `resolution` only
+// decides how many pixels that picture is rasterized into: 1080p and 2160p are
+// the same composition at different densities, not two different-looking
+// charts, which is what happens when type sizes are absolute and the canvas
+// grows underneath them.
 export function buildAnimation(
   beforeState: ChartState,
   afterState: ChartState,
   resolution: { width: number; height: number },
   measureCtx: Canvas2D,
+  frame: { width: number; height: number } = PRESENT_FRAME,
 ): Animation {
-  const legend = legendEntriesFor(afterState);
-  const legendHeight = measureLegendHeight(measureCtx, legend, resolution.width - 24);
-  const chartViewport = {
-    width: resolution.width,
-    height: resolution.height - legendHeight,
-  };
+  const { chartViewport, legendHeight } = splitFrame(measureCtx, afterState, frame);
   return {
     resolution,
+    frame,
     chartViewport,
-    legend,
     legendHeight,
+    legend: legendEntriesFor(afterState),
     setup: buildSetup(beforeState, afterState, chartViewport),
   };
 }
 
-// Draws one complete video frame at full resolution coordinates. The same
-// call feeds the preview player (scaled transform) and the MP4 encoder.
+// Draws one complete video frame. Composition is in frame coordinates; the
+// transform maps it onto however many pixels the target canvas is wide, so the
+// same call feeds the half-size preview player and the full-resolution encoder.
 export function renderAnimationFrame(
   ctx: Canvas2D,
   anim: Animation,
   t: number,
   easing: EasingName,
+  targetWidth: number = anim.resolution.width,
 ): void {
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, 0, anim.resolution.width, anim.resolution.height);
+  const scale = targetWidth / anim.frame.width;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.fillStyle = PAGE_BACKGROUND;
+  ctx.fillRect(0, 0, anim.frame.width, anim.frame.height);
   drawFrame(ctx, frameAt(anim.setup, t, easing), null);
   if (anim.legend.length > 0) {
-    drawLegend(ctx, anim.legend, 12, anim.chartViewport.height, anim.resolution.width - 24);
+    drawLegend(
+      ctx,
+      anim.legend,
+      BAND_INSET,
+      anim.chartViewport.height,
+      anim.frame.width - BAND_INSET * 2,
+    );
   }
 }

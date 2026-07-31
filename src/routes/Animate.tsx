@@ -137,14 +137,15 @@ export default function Animate() {
     return () => cancelAnimationFrame(raf);
   }, [playing, durationMs]);
 
+  // The preview is the frame at half size, not the chosen resolution at some
+  // fraction: resolution only changes pixel density, so previewing it would
+  // show the same picture twice.
   useEffect(() => {
     const canvas = previewRef.current;
     if (!canvas || !anim) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const scale = canvas.width / anim.resolution.width;
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    renderAnimationFrame(ctx, anim, t, easing);
+    renderAnimationFrame(ctx, anim, t, easing, canvas.width);
   }, [anim, t, easing]);
 
   return (
@@ -218,8 +219,8 @@ export default function Animate() {
         <div className="preview-wrap">
           <canvas
             ref={previewRef}
-            width={anim.resolution.width / 2}
-            height={anim.resolution.height / 2}
+            width={anim.frame.width / 2}
+            height={anim.frame.height / 2}
             className="preview-canvas"
           />
           <div className="player-row">

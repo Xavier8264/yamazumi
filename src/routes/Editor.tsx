@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -23,7 +23,7 @@ import { newChartState } from '../model/defaults';
 import { computeAxisMax } from '../model/axis';
 import { parseCsv, serializeCsv } from '../model/csv';
 import { dropTargetFor, moveBlockTo } from '../model/drag';
-import { layout } from '../model/layout';
+import { PRESENT_FRAME, layout } from '../model/layout';
 import {
   addBay,
   addBlock,
@@ -340,6 +340,44 @@ function init(): EditorState {
   return fresh(newChartState());
 }
 
+// SPEC 12.3: presentation mode is for a clean screen capture, and SPEC 5 wants
+// that capture and an export to be the same picture. So it does not lay the
+// chart out to fit the window -- it renders PRESENT_FRAME, the exact 16:9 box
+// every export composes at, and scales it to fit. Margins, type sizes and the
+// legend band are then identical to the PNG and to every MP4 frame by
+// construction, at any window size, browser zoom, or Windows display scaling.
+// Letterbox bars are the page background, so on a 16:9 screen there is nothing
+// to see.
+function PresentStage({ children }: { children: React.ReactNode }) {
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const update = () =>
+      setScale(
+        Math.min(
+          window.innerWidth / PRESENT_FRAME.width,
+          window.innerHeight / PRESENT_FRAME.height,
+        ),
+      );
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  return (
+    <div
+      className="present-stage"
+      style={{
+        width: PRESENT_FRAME.width,
+        height: PRESENT_FRAME.height,
+        transform: 'translate(-50%, -50%) scale(' + scale + ')',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function downloadCsv(chart: ChartState): void {
   const csv = serializeCsv(chart);
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
@@ -570,6 +608,24 @@ export default function Editor() {
         )
       : undefined;
 
+  const picture = (
+    <>
+      <Chart
+        chart={state.chart}
+        presenting={state.presenting}
+        onFit={() => dispatch({ type: 'fit' })}
+        onEditBlock={(id) => dispatch({ type: 'open-edit', id })}
+        onAddToBay={(bay) => dispatch({ type: 'open-add', bay })}
+        onRenameBay={(from, to) => dispatch({ type: 'rename-bay', from, to })}
+        onRemoveBay={(bay) => dispatch({ type: 'remove-bay', bay })}
+        onSizeChange={(size) => {
+          chartSizeRef.current = size;
+        }}
+      />
+      <Legend chart={state.chart} />
+    </>
+  );
+
   return (
     <div className={state.presenting ? 'editor presenting' : 'editor'}>
       {!state.presenting && (
@@ -586,14 +642,10 @@ export default function Editor() {
           onRedo={() => dispatch({ type: 'redo' })}
           onExportCsv={handleExportCsv}
           onExportPng={(includeParking) =>
-            handleImageExport(() =>
-              exportPng(state.chart, chartSizeRef.current, includeParking),
-            )
+            handleImageExport(() => exportPng(state.chart, includeParking))
           }
           onExportPdf={(includeParking) =>
-            handleImageExport(() =>
-              exportPdf(state.chart, chartSizeRef.current, includeParking),
-            )
+            handleImageExport(() => exportPdf(state.chart, includeParking))
           }
           onTaktChange={(value) => dispatch({ type: 'set-takt', value })}
           onAxisMaxChange={(value) => dispatch({ type: 'set-axis-max', value })}
@@ -631,19 +683,9 @@ export default function Editor() {
         onDragEnd={handleDragEnd}
         onDragCancel={() => dispatch({ type: 'drag-cancel' })}
       >
-        <Chart
-          chart={state.chart}
-          presenting={state.presenting}
-          onFit={() => dispatch({ type: 'fit' })}
-          onEditBlock={(id) => dispatch({ type: 'open-edit', id })}
-          onAddToBay={(bay) => dispatch({ type: 'open-add', bay })}
-          onRenameBay={(from, to) => dispatch({ type: 'rename-bay', from, to })}
-          onRemoveBay={(bay) => dispatch({ type: 'remove-bay', bay })}
-          onSizeChange={(size) => {
-            chartSizeRef.current = size;
-          }}
-        />
-        <Legend chart={state.chart} />
+        {/* The chart and its legend are the picture: on the fixed export frame
+            while presenting, filling the window under the top bar otherwise. */}
+        {state.presenting ? <PresentStage>{picture}</PresentStage> : picture}
         {!state.presenting && (
           <ParkingLot
             chart={state.chart}

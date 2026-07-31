@@ -382,17 +382,34 @@ A Canvas 2D renderer consumes `LayoutResult` and draws blocks, labels, the axis,
 dotted takt line, bay headers, totals, and the legend. It is the single code path
 behind PNG, PDF, and video frames.
 
+**The presentation frame.** There is one canonical composition, `PRESENT_FRAME`
+(1920x1080, 16:9), and every picture of the chart is that frame: presentation mode
+renders it and scales it to fit the window, a PNG rasterizes it at 3x, and every video
+frame is it at the chosen resolution. The chart takes the frame minus the legend band,
+exactly as the on-screen flex column splits them.
+
+Consequences, all deliberate:
+
+- Type sizes in the canvas renderer are the `.presenting` sizes from `index.css`, not
+  the editor's. Change one, change the other.
+- An export is never sized from the editor window. Two people on different monitors
+  export the same image.
+- Resolution changes pixel density, not composition. 1080p and 2160p clips are the
+  same picture; absolute type on a growing canvas would not be.
+
 Do **not** use `html-to-image`, `html2canvas`, or any DOM rasterization. The chart is
 rectangles, text, and dashed lines. Draw it directly. This is faster by two orders of
 magnitude and avoids font-embedding failures.
 
 ### 12.2 PNG and PDF
 
-- PNG rendered at 3x pixel ratio.
+- PNG rendered at 3x pixel ratio: 5760x3240 for the 1920x1080 frame.
 - PDF via `jsPDF` wrapping that same image.
 - Exports include the axis, bay headers, totals, takt line, and legend.
 - Exports **exclude** the top bar and the parking lot by default. Provide an
-  `Include parking lot` checkbox.
+  `Include parking lot` checkbox. The parking band is appended **below** the frame:
+  presentation mode unmounts the tray, so it can never be part of the picture, and
+  ticking the box must not steal height from the chart.
 
 ### 12.3 Presentation mode
 
@@ -401,6 +418,13 @@ chart with larger type. Esc exits.
 
 Purpose: clean manual screen capture (Win+Shift+S) for slides. It is not a live
 presenter mode and needs no speaker controls.
+
+It renders `PRESENT_FRAME` at its fixed layout size and scales it to fit the window
+with a transform, letterboxed in the page background. It does **not** lay itself out to
+fit the window: a fluid stage is what makes a capture and an export disagree, because
+the canvas renderer's margins and type are absolute. Rendering the frame itself makes
+the capture, the PNG, and every MP4 frame the same picture at any window size, browser
+zoom, or Windows display scaling.
 
 ---
 
@@ -413,8 +437,9 @@ morph animation as an MP4, for embedding on a PowerPoint slide.
 
 - Two drop zones: `Before` and `After`.
 - Controls: duration (default 2500ms), easing (default easeInOutCubic), fps (30 or 60),
-  resolution (1920x1080 or 3840x2160).
-- Preview player with a scrubber.
+  resolution (1920x1080 or 3840x2160). Resolution is output pixel density only; the
+  clip is composed at `PRESENT_FRAME` either way (section 12.1).
+- Preview player with a scrubber, showing the frame at half size.
 - Before export, show a matching summary: `12 blocks moved, 3 added, 1 removed`. This
   is how the user catches a bad match before it ends up in a deck.
 - `Export MP4` button.
@@ -438,7 +463,8 @@ Render frames **offline**, not in real time. There is no capture and no playback
 timing constraint, so no frames can drop.
 
 Pipeline: draw frame to canvas with the Canvas 2D renderer -> `VideoEncoder` ->
-mux to MP4.
+mux to MP4. Frames are drawn on the app's own page background, like every other
+picture of the chart; a clip on a white page reads as a different product.
 
 - Use the **WebCodecs** `VideoEncoder` with an H.264 codec string (`avc1.*`).
   Supported in Chrome 94+, Edge 94+, Firefox 130+, Safari 26+.

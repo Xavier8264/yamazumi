@@ -57,7 +57,10 @@ export default defineConfig({
     allowedHosts: LAN_ALLOWED_HOSTS,
   },
   optimizeDeps: {
-    include: ['mediabunny'],
+    // react-dom/client is here for the browser tests only: they mount a real
+    // component to check the CSS against the canvas renderer, and a dep
+    // optimized mid-run reloads the page under the test.
+    include: ['mediabunny', 'react-dom/client'],
   },
   resolve: {
     alias: {

@@ -808,7 +808,23 @@ input {
 
 /* Top bar and parking lot are unmounted by the Editor. What is left is the
    chart at larger type, sized for a screen capture. Esc exits; there is
-   deliberately no exit button, because it would land in the capture. */
+   deliberately no exit button, because it would land in the capture.
+
+   The stage is the export frame itself (PRESENT_FRAME, 1920x1080), sized in
+   layout px by the Editor and scaled to fit the window with a transform. Its
+   size is therefore FIXED: the type sizes below are the same absolute px the
+   canvas renderer draws with, so a capture of this and an exported PNG are the
+   same picture. Never make the stage fluid -- that is what made an export and
+   the screen disagree in the first place. */
+.present-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .presenting .tick-label {
   font-size: var(--bt-fs-body);
 }
